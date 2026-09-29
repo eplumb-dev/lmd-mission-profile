@@ -108,6 +108,8 @@ table.stops tr.viewing td { background: var(--grid); }
 .nowrap { white-space: nowrap; }
 .linkbtn { border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; font-variant-numeric: tabular-nums; }
 .linkbtn:hover { background: none; }
+.delbtn { border: 0; background: none; padding: 0 4px; color: var(--text-muted); font-size: 16px; line-height: 1; cursor: pointer; }
+.delbtn:hover { background: none; color: var(--text-primary); }
 .empty { text-align: center; padding: 40px 20px; }
 .empty p { color: var(--text-secondary); max-width: 560px; margin: 8px auto; line-height: 1.5; }
 code { font-size: 12px; background: var(--grid); padding: 1px 4px; border-radius: 3px; }
@@ -775,7 +777,7 @@ function buildStopsTable() {
   const cols = STOP_COL_ORDER.filter(k => stops.some(s => s.steps[k] && s.steps[k].length));
   const nSel = stops.filter(isSelected).length;
   document.getElementById('stopsCount').textContent = `${nSel} of ${stops.length} stops selected`;
-  const head = `<thead><tr><th></th><th>Log ID</th><th>Start</th>${cols.map(k => `<th class="n">${esc(colLabel(k))}</th>`).join('')}<th class="n">Logged total</th></tr></thead>`;
+  const head = `<thead><tr><th></th><th>Log ID</th><th>Start</th>${cols.map(k => `<th class="n">${esc(colLabel(k))}</th>`).join('')}<th class="n">Logged total</th><th></th></tr></thead>`;
   const body = stops.map(s => {
     const sel = isSelected(s), viewing = s.tag === viewTag;
     const cells = cols.map(k => {
@@ -785,10 +787,11 @@ function buildStopsTable() {
     return `<tr class="${sel ? '' : 'excluded'}${viewing ? ' viewing' : ''}" data-tag="${esc(s.tag)}">
       <td><input type="checkbox" data-sel="${esc(s.tag)}" ${sel ? 'checked' : ''} aria-label="Include stop ${esc(s.id)}"></td>
       <td><button class="linkbtn" data-view="${esc(s.tag)}" title="${viewing ? 'Hide from' : 'Show on'} the timeline · ${esc(s.file)}">${esc(s.id)}</button></td>
-      <td class="nowrap">${esc(shortTime(s.time))}</td>${cells}<td class="n"><b>${fmt(stopTotal(s))}</b></td></tr>`;
+      <td class="nowrap">${esc(shortTime(s.time))}</td>${cells}<td class="n"><b>${fmt(stopTotal(s))}</b></td>
+      <td><button class="delbtn" data-del="${esc(s.tag)}" title="Delete stop ${esc(s.id)}" aria-label="Delete stop ${esc(s.id)}">×</button></td></tr>`;
   }).join('');
   const agg = cols.map(k => { const a = samplesOf(k); return `<td class="n">${a.length ? r1(STAT_FN[stat](a)) : '–'}</td>`; }).join('');
-  const foot = `<tfoot><tr><th></th><th colspan="2">${esc(STAT_LABEL[stat][0].toUpperCase() + STAT_LABEL[stat].slice(1))} of selected</th>${agg}<th></th></tr></tfoot>`;
+  const foot = `<tfoot><tr><th></th><th colspan="2">${esc(STAT_LABEL[stat][0].toUpperCase() + STAT_LABEL[stat].slice(1))} of selected</th>${agg}<th></th><th></th></tr></tfoot>`;
   document.getElementById('stopsTable').innerHTML = head + `<tbody>${body}</tbody>` + foot;
 }
 function setSelection(fn) { fn(FIELD.off || (FIELD.off = {})); saveField(); render(); }
@@ -797,7 +800,17 @@ document.getElementById('stopsTable').addEventListener('change', e => {
   const on = e.target.checked;
   setSelection(off => { if (on) delete off[tag]; else off[tag] = true; });
 });
+function deleteStop(tag) {
+  const s = FIELD.stops.find(x => x.tag === tag); if (!s) return;
+  if (!confirm(`Delete stop ${s.id} from the imported data? To get it back, import its CSV again.`)) return;
+  FIELD.stops = FIELD.stops.filter(x => x !== s);
+  if (FIELD.off) delete FIELD.off[tag];
+  if (viewTag === tag) viewTag = null;
+  if (!FIELD.stops.length && !Object.keys(FIELD.route || {}).length) FIELD = null;
+  saveField(); render(); flash(`Deleted stop ${s.id}.`);
+}
 document.getElementById('stopsTable').addEventListener('click', e => {
+  const del = e.target.dataset && e.target.dataset.del; if (del != null) { deleteStop(del); return; }
   const tag = e.target.dataset && e.target.dataset.view; if (tag == null) return;
   viewTag = viewTag === tag ? null : tag;
   render();
