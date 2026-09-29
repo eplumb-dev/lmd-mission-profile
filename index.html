@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LMD Mission Profile – Timing Model</title>
+<style>
+.viz-root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface-1: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11,11,11,0.10);
+  --accent: #2a78d6;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .viz-root {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface-1: #1a1a19;
+    --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --accent: #3987e5;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  }
+}
+:root[data-theme="dark"] .viz-root {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface-1: #1a1a19;
+  --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --accent: #3987e5;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+.viz-root { background: var(--page); color: var(--text-primary); min-height: 100vh; padding: 20px 24px 40px; font-size: 14px; }
+h1 { font-size: 20px; margin: 0 0 4px; }
+h2 { font-size: 15px; margin: 0 0 10px; }
+h3 { font-size: 13px; margin: 14px 0 6px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
+.sub { color: var(--text-secondary); margin: 0 0 14px; max-width: 900px; line-height: 1.4; }
+.layout { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
+@media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.controls { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+.row { display: grid; grid-template-columns: 1fr auto 64px; gap: 8px; align-items: center; padding: 3px 0; }
+.row label { color: var(--text-primary); display: flex; align-items: center; gap: 6px; }
+.row input[type=number], select { width: 64px; padding: 3px 5px; border: 1px solid var(--axis); border-radius: 5px; background: var(--surface-1); color: var(--text-primary); font: inherit; font-variant-numeric: tabular-nums; text-align: right; }
+select { width: auto; text-align: left; }
+.row.changed input { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.tag { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: help; }
+.tag.ideal { font-style: italic; }
+.swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+details { border-top: 1px solid var(--grid); padding: 6px 0; }
+details > summary { cursor: pointer; font-weight: 600; padding: 4px 0; list-style-position: outside; }
+details > summary .tot { float: right; font-weight: 400; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.subgroup { margin: 4px 0 6px 4px; padding-left: 8px; border-left: 2px solid var(--grid); }
+.subgroup-title { font-size: 12px; color: var(--text-muted); margin: 6px 0 2px; text-transform: uppercase; letter-spacing: .04em; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+button, .filebtn { font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--axis); background: var(--surface-1); color: var(--text-primary); cursor: pointer; }
+button:hover, .filebtn:hover { background: var(--grid); }
+button.primary, .filebtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.tile .k { color: var(--text-secondary); font-size: 12px; }
+.tile .v { font-size: 26px; font-weight: 600; margin-top: 2px; }
+.tile .d { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 10px; color: var(--text-secondary); font-size: 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart text { fill: var(--text-secondary); font-size: 12px; font-family: inherit; }
+.chart .muted { fill: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart .strong { fill: var(--text-primary); font-weight: 600; }
+.chart .seg { stroke: var(--surface-1); stroke-width: 2; cursor: default; }
+.chart .seg:hover { opacity: .8; }
+.chart .seg.missing-seg { stroke-width: 1.5; }
+.tip { position: fixed; pointer-events: none; background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--border); box-shadow: 0 4px 14px rgba(0,0,0,.15); border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.4; display: none; z-index: 10; max-width: 300px; }
+.tip b { font-weight: 600; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--grid); }
+th { color: var(--text-secondary); font-weight: 600; }
+tbody tr.grp-start:not(:first-child) td { border-top: 1px solid var(--axis); }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+.note { color: var(--text-muted); font-size: 12px; line-height: 1.4; }
+.toggle { display: flex; gap: 0; border: 1px solid var(--axis); border-radius: 6px; overflow: hidden; width: fit-content; margin-bottom: 10px; }
+.toggle button { border: 0; border-radius: 0; }
+.toggle button.on { background: var(--accent); color: #fff; }
+.modebar { margin-bottom: 16px; }
+.modebar button { font-size: 14px; padding: 8px 16px; font-weight: 600; }
+.headrow { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.fieldbox { border: 1px solid var(--grid); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.fieldbox p { margin: 4px 0; }
+.tablewrap { overflow-x: auto; }
+table.stops { font-size: 12px; }
+table.stops th { white-space: normal; vertical-align: bottom; min-width: 52px; }
+table.stops td { white-space: nowrap; }
+table.stops tr.excluded td { color: var(--text-muted); }
+table.stops tr.viewing td { background: var(--grid); }
+.missing { color: var(--text-muted); }
+.nowrap { white-space: nowrap; }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; font-variant-numeric: tabular-nums; }
+.linkbtn:hover { background: none; }
+.empty { text-align: center; padding: 40px 20px; }
+.empty p { color: var(--text-secondary); max-width: 560px; margin: 8px auto; line-height: 1.5; }
+code { font-size: 12px; background: var(--grid); padding: 1px 4px; border-radius: 3px; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>LMD Mission Profile — Timing Model</h1>
+  <p class="sub">Adjust step durations and route settings to see how time per stop and total route time change. The phase and step structure comes from <i>LMD Mission Profile.drawio</i>. <b>Ideal Mission Timing</b> is a set of target values you enter. <b>Field Data Mission Timing</b> is filled in from CSV logs of routes you've already run. <b>Field vs Ideal Comparison</b> puts one stop from each side by side. The Ideal values are saved in the page URL so you can share them. Imported field data is kept in this browser.</p>
+
+  <div class="toggle modebar" id="modeToggle">
+    <button data-m="ideal" class="on">Ideal Mission Timing</button>
+    <button data-m="field">Field Data Mission Timing</button>
+    <button data-m="compare">Field vs Ideal Comparison</button>
+  </div>
+
+  <div class="layout">
+    <!-- CONTROLS -->
+    <div class="controls card" id="controls">
+      <div class="fieldbox" id="fieldBox" hidden>
+        <h2 style="margin-bottom:6px">Field data</h2>
+        <div id="fieldSummary" class="note"></div>
+        <div class="row" style="grid-template-columns:1fr auto"><label for="statSel">Summarize each step by</label>
+          <select id="statSel"><option value="mean">Mean</option><option value="median">Median</option><option value="p90">90th percentile</option></select></div>
+        <div class="row" id="pausedRow" style="grid-template-columns:1fr auto" hidden><label for="pausedChk">Include paused time <span class="tag" id="pausedNote"></span></label>
+          <input type="checkbox" id="pausedChk" style="width:16px;height:16px"></div>
+        <div class="btns">
+          <label class="filebtn primary">Add CSV files<input type="file" class="csvInput" accept=".csv,.tsv,.txt,text/csv" multiple hidden></label>
+          <button id="clearField">Clear field data</button>
+          <button class="tplBtn">Download template</button>
+        </div>
+      </div>
+      <p class="note" id="compareNote" hidden>This view compares one stop from the Ideal inputs with one stop from the selected field data. To change values, switch to Ideal Mission Timing or Field Data Mission Timing.</p>
+      <div id="editors">
+        <h2>Route settings</h2>
+        <div id="routeInputs"></div>
+        <h3>Step durations (seconds)</h3>
+        <div id="stepInputs"></div>
+      </div>
+      <div class="btns">
+        <button class="primary" id="copyLink">Copy scenario link</button>
+        <button id="reset">Reset defaults</button>
+        <button id="exportJson">Export JSON</button>
+        <label class="filebtn">Import JSON<input type="file" id="importJson" accept=".json,application/json" hidden></label>
+        <button id="exportCsv">Export CSV</button>
+      </div>
+      <p class="note" id="status"></p>
+    </div>
+
+    <!-- OUTPUTS -->
+    <div>
+      <div class="card empty" id="emptyField" hidden>
+        <h2>No field data imported yet</h2>
+        <p id="legacyNote" hidden><b>Your earlier import was saved in an older format that doesn't keep each stop separately. Please import the CSV files again.</b></p>
+        <p>Import one or more CSV files from routes you've already run. The model takes each step's mean, median or 90th-percentile duration from the data and uses it for the Field data timing. Field Data mode is separate from your Ideal inputs: any step missing from the data uses a built-in default value and is drawn as a transparent box.</p>
+        <div class="btns" style="justify-content:center">
+          <label class="filebtn primary">Import CSV files<input type="file" class="csvInput" accept=".csv,.tsv,.txt,text/csv" multiple hidden></label>
+          <button class="tplBtn">Download template</button>
+        </div>
+        <details style="text-align:left;max-width:640px;margin:18px auto 0;border:0">
+          <summary>Accepted CSV formats</summary>
+          <div class="note" style="margin-top:6px">
+            <p><b>Wide (one row per stop).</b> Each column is a step, for example <code>route, stop, park, openDoors, …, navToZone, …, putInDrive</code>. Column names can be the step keys from the template or the step labels shown on this page, such as "Deploy stairs". Route-level columns (<code>vehiclePrep</code>, <code>driveToStop</code>, <code>completeRoute</code>) only need a value on one row per route. Leave a cell blank if a step wasn't measured.</p>
+            <p><b>Long (one row per step event).</b> This needs a <code>step</code> column and a <code>seconds</code> or <code>duration</code> column. <code>route</code> and <code>stop</code> columns are optional. Without a <code>stop</code> column, each "Park" row starts a new stop.</p>
+            <p><b>Robot text log</b> (for example <code>…TextLogProto.csv</code>). This uses the <code>Log ID</code> column (one stop per Log ID) and the <code>Message</code> column, reading lines like <code>step=DISMOUNT_VAN active= 9.20s paused= 0.00s</code>. Recognized steps: POWER_ON_STAND, ALIGN_TO_VAN_INTERIOR, DISMOUNT_VAN, LOCALIZE_POINT_CLOUD, NAVIGATE_TO_DELIVER, DEPOSIT_PACKAGES, NAVIGATE_TO_MOUNT, ALIGN_TO_VAN_EXTERIOR, MOUNT_VAN, ALIGN_TO_VAN_INTERIOR_STOW, SIT_POWER_OFF. DEPOSIT_PACKAGES is split across the four Deposit sub-steps in proportion to their default values. Stops on route keeps its default value, because a log export doesn't necessarily cover a whole route.</p>
+            <p><b>Durations</b> can be written as seconds (<code>12.5</code>) or as <code>mm:ss</code> / <code>hh:mm:ss</code>. Without a <code>route</code> column, each file counts as one route. Stops per route and robot trips per stop are counted from the data.</p>
+            <p><b>Navigate</b> still uses distance ÷ speed. If the data has measured navigate times, the speed is set so that distance ÷ speed matches them. You can also supply <code>navSpeed</code> (m/s) and <code>navDist</code> (m) columns.</p>
+          </div>
+        </details>
+      </div>
+
+      <div id="outputs">
+        <div class="tiles" id="tiles"></div>
+
+        <div class="card chart">
+          <h2>Timeline for one stop</h2>
+          <div class="legend" id="legend1"></div>
+          <div id="stopChart"></div>
+          <p class="note">Hover over a segment to see the step and its duration. In Field Data mode, a transparent box marks a step that isn't in the logs and uses its default value.</p>
+        </div>
+
+        <div class="card" id="stopsCard" hidden>
+          <div class="headrow">
+            <h2>Imported stops</h2>
+            <span class="note" id="stopsCount"></span>
+          </div>
+          <div class="btns" style="margin:0 0 10px"><button id="stopsAll">Select all</button><button id="stopsNone">Clear all</button></div>
+          <div class="tablewrap"><table id="stopsTable" class="stops"></table></div>
+          <p class="note">One row per Log ID, showing the seconds logged for each step. "×2" means the step was logged twice at that stop, and the value shown is the average. Tick a stop to include it in the Field data calculations. Click a Log ID to show that stop on the timeline; steps it didn't log are drawn as transparent boxes and use the Field data value.</p>
+        </div>
+
+        <div class="card chart">
+          <h2 id="routeTitle">Where the route time goes</h2>
+          <div id="routeChart"></div>
+          <table id="routeTable" style="margin-top:12px"></table>
+        </div>
+
+        <div class="card">
+          <h2>Model assumptions</h2>
+          <ul class="note" style="margin:0;padding-left:18px">
+            <li><b>Route:</b> Vehicle Prep (once) → Drive to Stop (depot to first stop) → Delivery → Navigate to Next Point (between stops, repeated) → Complete Route (once).</li>
+            <li><b>Delivery</b> = Stop Initialization → Autodeliver (Prepare for Delivery, Navigate to Delivery Zone, Deposit, Navigate to Van, Complete Delivery) → Stop Reload.</li>
+            <li><b>Navigate (to delivery zone)</b> and <b>Navigate (to van)</b> each take distance ÷ speed. Both legs use the same distance, and the time is calculated rather than typed in.</li>
+            <li><b>Robot trips per stop &gt; 1</b> repeats Load Package → Navigate to Zone → Deposit → Navigate to Van for each extra package.</li>
+            <li><b>Field data:</b> each step uses one summary value (mean, median or 90th percentile) across every imported occurrence. Field mode doesn't use your Ideal inputs. Steps and route settings missing from the data use the built-in default values, are tagged <i>default</i>, and are drawn as transparent boxes. Values you edit in Field mode sit on top of the imported values. "Reset" removes those edits. The per-stop breakdown in Field mode covers one stop only.</li>
+            <li>Durations are fixed per step. The model assumes no parallel work, failures, or retries.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="tip" id="tip"></div>
+</div>
+
+<script>
+// ---------- Model definition (structure from LMD Mission Profile.drawio) ----------
+// "state" = Paige's original states row; "phase" = diagram phase grouping.
+const STATES = [
+  { id: 'drive',   name: 'Driving',        color: 'var(--s1)' },
+  { id: 'init',    name: 'Initialization', color: 'var(--s2)' },
+  { id: 'place',   name: 'Place Package',  color: 'var(--s3)' },
+  { id: 'transit', name: 'Transit',        color: 'var(--s4)' },
+  { id: 'dispense',name: 'Dispense',       color: 'var(--s5)' },
+  { id: 'reload',  name: 'Reload',         color: 'var(--s6)' },
+  { id: 'closeout',name: 'Stop Reload (van close-out)', color: 'var(--s7)' },
+];
+const PHASES = [
+  { id: 'vehicle', name: 'Vehicle Prep / Complete Route', color: 'var(--s1)' },
+  { id: 'drive',   name: 'Drive / Navigate to Next Point', color: 'var(--s7)' },
+  { id: 'stopinit',name: 'Stop Initialization', color: 'var(--s2)' },
+  { id: 'prepare', name: 'Prepare for Delivery', color: 'var(--s3)' },
+  { id: 'nav',     name: 'Navigate (zone / van)', color: 'var(--s4)' },
+  { id: 'deposit', name: 'Deposit', color: 'var(--s5)' },
+  { id: 'complete',name: 'Complete Delivery', color: 'var(--s6)' },
+  { id: 'reload',  name: 'Stop Reload', color: 'var(--s8)' },
+];
+
+// Hierarchy for the controls panel. Each step: key, label, default seconds, state, phase.
+const GROUPS = [
+  { name: 'Vehicle Prep', scope: 'route', steps: [
+    { k: 'vehiclePrep', l: 'Vehicle prep', d: 600, s: 'drive', p: 'vehicle' } ] },
+  { name: 'Drive to Stop', scope: 'route', steps: [
+    { k: 'driveToStop', l: 'Drive to first stop', d: 900, s: 'drive', p: 'drive' } ] },
+  { name: 'Delivery', scope: 'stop', sub: [
+    { name: 'Stop Initialization', steps: [
+      { k: 'park', l: 'Park', d: 15, s: 'init', p: 'stopinit' },
+      { k: 'openDoors', l: 'Open doors', d: 10, s: 'init', p: 'stopinit' },
+      { k: 'deployStairs', l: 'Deploy stairs', d: 15, s: 'init', p: 'stopinit' },
+      { k: 'selectAddress', l: 'Select address', d: 5, s: 'init', p: 'stopinit' } ] },
+    { name: 'Autodeliver › Prepare for Delivery', steps: [
+      { k: 'motorPowerOn', l: 'Motor power on', d: 5, s: 'init', p: 'prepare' },
+      { k: 'alignInt1', l: 'Align (interior)', d: 10, s: 'init', p: 'prepare' },
+      { k: 'dismount', l: 'Dismount', d: 20, s: 'init', p: 'prepare' },
+      { k: 'localize', l: 'Localize (outside)', d: 10, s: 'init', p: 'prepare' },
+      { k: 'loadPackage', l: 'Load package', d: 15, s: 'place', p: 'prepare' } ] },
+    { name: 'Autodeliver › Navigate', steps: [
+      { k: 'navToZone', l: 'Navigate (to delivery zone)', calc: true, s: 'transit', p: 'nav' } ] },
+    { name: 'Autodeliver › Deposit', steps: [
+      { k: 'position', l: 'Position (enter porch + prepare payload)', d: 10, s: 'dispense', p: 'deposit' },
+      { k: 'bow', l: 'Bow', d: 5, s: 'dispense', p: 'deposit' },
+      { k: 'dispense', l: 'Dispense', d: 8, s: 'dispense', p: 'deposit' },
+      { k: 'depart', l: 'Depart (exit porch + retract payload)', d: 10, s: 'dispense', p: 'deposit' } ] },
+    { name: 'Autodeliver › Navigate', steps: [
+      { k: 'navToVan', l: 'Navigate (to van)', calc: true, s: 'transit', p: 'nav' } ] },
+    { name: 'Autodeliver › Complete Delivery', steps: [
+      { k: 'alignExt', l: 'Align (exterior)', d: 10, s: 'reload', p: 'complete' },
+      { k: 'mount', l: 'Mount', d: 20, s: 'reload', p: 'complete' },
+      { k: 'alignInt2', l: 'Align (interior)', d: 10, s: 'reload', p: 'complete' },
+      { k: 'motorPowerOff', l: 'Motor power off', d: 10, s: 'reload', p: 'complete' } ] },
+    { name: 'Stop Reload', steps: [
+      { k: 'packStairs', l: 'Pack up stairs', d: 15, s: 'closeout', p: 'reload' },
+      { k: 'closeDoors', l: 'Close doors', d: 10, s: 'closeout', p: 'reload' },
+      { k: 'putInDrive', l: 'Put in drive', d: 5, s: 'closeout', p: 'reload' } ] },
+  ] },
+  { name: 'Navigate to Next Point', scope: 'route', steps: [
+    { k: 'navNext', l: 'Drive between stops', d: 120, s: 'drive', p: 'drive' } ] },
+  { name: 'Complete Route', scope: 'route', steps: [
+    { k: 'completeRoute', l: 'Complete route', d: 600, s: 'drive', p: 'vehicle' } ] },
+];
+
+const ROUTE_INPUTS = [
+  { k: 'stops', l: 'Stops on route', d: 80, min: 1, step: 1 },
+  { k: 'trips', l: 'Robot trips per stop', d: 1, min: 1, step: 1 },
+  { k: 'shiftHrs', l: 'Shift length (hours)', d: 8, min: 0.5, step: 0.5 },
+  { k: 'navSpeed', l: 'Robot navigate speed (m/s)', d: 1.0, min: 0.1, step: 0.1 },
+  { k: 'navDist', l: 'Navigate distance, van ↔ delivery zone (m)', d: 40, min: 0, step: 1 },
+];
+// Inputs that are plain numbers rather than durations when imported.
+const NUMERIC_KEYS = new Set(['stops', 'trips', 'shiftHrs', 'navSpeed', 'navDist']);
+
+// Flatten
+const STEP = {};
+const ALL_STEPS = [];
+function walk(g, groupName) {
+  (g.steps || []).forEach(st => { st.group = groupName; STEP[st.k] = st; ALL_STEPS.push(st); });
+  (g.sub || []).forEach(sg => walk(sg, sg.name));
+}
+GROUPS.forEach(g => walk(g, g.name));
+const DELIVERY_KEYS = new Set();
+(function collect(g) { (g.steps || []).forEach(s => DELIVERY_KEYS.add(s.k)); (g.sub || []).forEach(collect); })(GROUPS.find(g => g.name === 'Delivery'));
+
+const DEFAULTS = {};
+ALL_STEPS.forEach(s => { if (!s.calc) DEFAULTS[s.k] = s.d; });
+ROUTE_INPUTS.forEach(r => DEFAULTS[r.k] = r.d);
+
+// ---------- State ----------
+// IDEAL: the hand-entered set. FIELD: imported samples + summary values + any edits made in Field mode.
+let IDEAL = { ...DEFAULTS };
+let FIELD = null; // { stops: [...], route: {}, off: {}, meta: {...}, edits: {}, base: {}, scaled: {}, navMeasured }
+let viewTag = null; // stop shown individually on the timeline
+let legacyData = false; // saved data from an older version that has no per-stop records
+let mode = 'ideal';
+let stat = 'mean';
+let includePaused = false;
+let colorMode = 'phase';
+let V = IDEAL; // the values currently being viewed/edited
+
+// Field mode is independent of the Ideal inputs: anything not in the data uses the built-in default.
+// __logged lists the steps backed by real data; the rest are drawn as transparent boxes.
+function valuesFor(m) {
+  if (m !== 'field' || !FIELD) return IDEAL;
+  return { ...DEFAULTS, ...FIELD.base, ...FIELD.edits, __logged: new Set(ALL_STEPS.filter(s => isMeasured(s.k)).map(s => s.k)) };
+}
+function isMeasured(k) {
+  if (!FIELD) return false;
+  if (STEP[k] && STEP[k].calc) return FIELD.navMeasured != null;
+  return samplesOf(k).length > 0 || !!(FIELD.scaled && FIELD.scaled[k]);
+}
+// Comparison mode has no editable set of its own; V stays on the Ideal values there.
+function refreshV() { V = valuesFor(mode === 'compare' ? 'ideal' : mode); }
+function baseline(k) { return mode === 'field' && FIELD ? (k in FIELD.base ? FIELD.base[k] : DEFAULTS[k]) : DEFAULTS[k]; }
+
+// Navigate legs are derived from distance ÷ speed; everything else is a direct input.
+function navSec() { return V.navSpeed > 0 ? V.navDist / V.navSpeed : 0; }
+function sec(k) {
+  if (STEP[k].calc) return V.__nav && V.__nav[k] != null ? V.__nav[k] : navSec(); // single-stop view uses the logged time
+  return V[k] || 0;
+}
+
+// ---------- Statistics ----------
+const sorted = a => [...a].sort((x, y) => x - y);
+const STAT_FN = {
+  mean: a => a.reduce((x, y) => x + y, 0) / a.length,
+  median: a => { const s = sorted(a), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; },
+  p90: a => { const s = sorted(a); return s[Math.max(0, Math.ceil(0.9 * s.length) - 1)]; },
+};
+const STAT_LABEL = { mean: 'mean', median: 'median', p90: '90th percentile' };
+
+// Field data is stored per stop: FIELD.stops = [{ tag, id, file, route, time, steps: { key: [{ v: active, p: paused }] } }].
+// Values that aren't tied to a stop (e.g. stops per route) live in FIELD.route. FIELD.off marks stops left out.
+const occ = o => includePaused ? o.v + o.p : o.v;
+const isSelected = s => !(FIELD.off && FIELD.off[s.tag]);
+const selectedStops = () => FIELD ? FIELD.stops.filter(isSelected) : [];
+// All occurrences of a key across the selected stops (plus route-level values).
+function samplesOf(k) {
+  if (!FIELD) return [];
+  const out = [];
+  selectedStops().forEach(s => (s.steps[k] || []).forEach(o => out.push(occ(o))));
+  (FIELD.route[k] || []).forEach(o => out.push(occ(o)));
+  return out;
+}
+// DEPOSIT_PACKAGES is logged as one step; the model splits it across the Deposit sub-steps.
+const DEPOSIT_KEYS = ['position', 'bow', 'dispense', 'depart'];
+// Write a total Deposit time into its sub-steps, in proportion to their default values.
+function splitDeposit(total, target) {
+  const defSum = DEPOSIT_KEYS.reduce((a, k) => a + (DEFAULTS[k] || 0), 0);
+  DEPOSIT_KEYS.forEach(k => {
+    target[k] = Math.round((defSum > 0 ? DEFAULTS[k] / defSum : 1 / DEPOSIT_KEYS.length) * total * 10) / 10;
+  });
+}
+
+function buildFieldBase() {
+  if (!FIELD) return;
+  const f = STAT_FN[stat], b = {};
+  for (const k of Object.keys(DEFAULTS)) {
+    const a = samplesOf(k);
+    if (!a.length) continue;
+    const v = f(a);
+    b[k] = k === 'navSpeed' ? v : Math.round(v * 10) / 10;
+  }
+  // Group-level Deposit time: split across sub-steps in proportion to their default values.
+  const dep = samplesOf('depositTotal');
+  FIELD.scaled = {};
+  if (dep.length && DEPOSIT_KEYS.every(k => b[k] == null)) {
+    splitDeposit(f(dep), b);
+    DEPOSIT_KEYS.forEach(k => FIELD.scaled[k] = true);
+  }
+  // Measured navigate times: keep distance ÷ speed, and set the speed so the result matches the measured time.
+  const navT = [...samplesOf('navToZone'), ...samplesOf('navToVan')];
+  FIELD.navMeasured = navT.length ? f(navT) : null;
+  if (navT.length && b.navSpeed == null) {
+    // Use the distance the user set in Field mode (if any), so distance ÷ speed still matches the measured time.
+    const dist = b.navDist != null ? b.navDist : FIELD.edits.navDist != null ? FIELD.edits.navDist : DEFAULTS.navDist;
+    b.navDist = dist;
+    if (FIELD.navMeasured > 0) b.navSpeed = dist / FIELD.navMeasured;
+  }
+  FIELD.base = b;
+}
+
+// ---------- CSV import ----------
+const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const ALIGN_INT = 'ALIGN_INT'; // "Align (interior)" appears twice; resolved by order of appearance
+const ALIAS = {};
+ALL_STEPS.concat(ROUTE_INPUTS).forEach(s => { ALIAS[norm(s.k)] = s.k; if (norm(s.l) !== 'aligninterior') ALIAS[norm(s.l)] = s.k; });
+ALIAS.aligninterior = ALIGN_INT;
+Object.assign(ALIAS, {
+  position: 'position', depart: 'depart', localize: 'localize', alignexterior: 'alignExt',
+  navigatetodeliveryzone: 'navToZone', navtodeliveryzone: 'navToZone', navigatetozone: 'navToZone',
+  navigatetovan: 'navToVan', navtovan: 'navToVan',
+  navigatetonextpoint: 'navNext', navtonextpoint: 'navNext', drivetonextstop: 'navNext',
+  drivetostop: 'driveToStop', vehicleprep: 'vehiclePrep', completeroute: 'completeRoute',
+  speed: 'navSpeed', speedms: 'navSpeed', navigatespeed: 'navSpeed', navigatespeedms: 'navSpeed', navspeedms: 'navSpeed',
+  distance: 'navDist', distancem: 'navDist', navigatedistance: 'navDist', navdistm: 'navDist',
+  tripsperstop: 'trips', stopsperroute: 'stops', stow: 'motorPowerOff',
+  deposit: 'depositTotal',
+  // Autodeliver FSM log step names ([AUTODELIVER_TIMING] step=...)
+  poweronstand: 'motorPowerOn',
+  aligntovaninterior: 'alignInt1',
+  dismountvan: 'dismount',
+  localizepointcloud: 'localize', localizpointcloud: 'localize',
+  navigatetodeliver: 'navToZone',
+  depositpackages: 'depositTotal',
+  navigatetomount: 'navToVan',
+  aligntovanexterior: 'alignExt',
+  mountvan: 'mount',
+  aligntovaninteriorstow: 'alignInt2',
+  sitpoweroff: 'motorPowerOff', sitepoweroff: 'motorPowerOff',
+});
+function mapStep(name) {
+  const n = norm(name);
+  if (!n) return null;
+  if (ALIAS[n]) return ALIAS[n];
+  const stripped = n.replace(/(seconds|secs|sec|s)$/, '');
+  return ALIAS[stripped] || null;
+}
+const ROUTE_COLS = ['route', 'routeid', 'routename', 'mission', 'missionid', 'run', 'runid'];
+const STOP_COLS = ['stop', 'stopid', 'stopnumber', 'stopno', 'address', 'deliveryid', 'logid'];
+const MSG_COLS = ['message', 'msg', 'text', 'log'];
+const STEPNAME_COLS = ['step', 'stepname', 'state', 'task', 'event', 'action', 'name', 'phase'];
+const DUR_COLS = ['seconds', 'duration', 'durations', 'durationsec', 'durationsecs', 'durationseconds', 'secs', 'sec', 'time', 'times', 'elapsed', 'elapseds', 'value'];
+
+function parseCSV(text) {
+  const firstLine = text.split(/\r?\n/, 1)[0];
+  const delim = [',', '\t', ';'].map(d => [d, firstLine.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === delim) { row.push(cell); cell = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += c;
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim() !== ''));
+}
+function parseDuration(v) {
+  v = String(v == null ? '' : v).trim();
+  if (!v) return NaN;
+  if (/^\d+(:\d+(\.\d+)?){1,2}$/.test(v)) return v.split(':').reduce((a, p) => a * 60 + parseFloat(p), 0);
+  return parseFloat(v.replace(/[^0-9.\-eE]/g, ''));
+}
+
+function ingest(text, fileName) {
+  const rows = parseCSV(text.replace(/^﻿/, ''));
+  if (rows.length < 2) throw new Error(`${fileName}: no data rows found`);
+  const header = rows[0].map(h => h.trim()), nh = header.map(norm);
+  const find = names => nh.findIndex(h => names.includes(h));
+  const iRoute = find(ROUTE_COLS), iStop = find(STOP_COLS), iStep = find(STEPNAME_COLS), iDur = find(DUR_COLS), iMsg = find(MSG_COLS);
+  const meta = FIELD.meta;
+  const fi = meta.files.length; // index of this file in meta.files
+  const recs = new Map();       // tag -> stop record for this file
+  let curTag = fi + '::';       // record the next value goes into; "fi::" means route-level
+  const tagFor = (route, stop) => {
+    const tag = `${fi}::${route}|${stop}`;
+    if (!recs.has(tag)) recs.set(tag, { tag, id: iRoute >= 0 ? `${route} · ${stop}` : stop, route, file: fileName, time: '', steps: {} });
+    return tag;
+  };
+  const push = (k, v, paused = 0) => {
+    if (!(isFinite(v) && v >= 0)) return;
+    const target = recs.has(curTag) ? recs.get(curTag).steps : FIELD.route;
+    (target[k] = target[k] || []).push({ v: +v, p: isFinite(paused) ? +paused : 0 });
+  };
+  const perStopKey = k => DELIVERY_KEYS.has(k) || k === 'depositTotal';
+  const read = (k, cell) => NUMERIC_KEYS.has(k) ? parseFloat(cell) : parseDuration(cell);
+  const routeOf = r => (iRoute >= 0 && r[iRoute] && r[iRoute].trim()) || fileName;
+  const stopsByRoute = new Map(), loadsByStop = new Map();
+  const noteStop = (route, stop, time) => {
+    if (!stopsByRoute.has(route)) stopsByRoute.set(route, new Set());
+    stopsByRoute.get(route).add(stop);
+    const rec = recs.get(tagFor(route, stop));
+    rec.isStop = true;
+    if (time && !rec.time) rec.time = time;
+  };
+  let format, explicitStops = false, matched = 0;
+
+  const STEP_RE = /step=(\S+)/, ACTIVE_RE = /active=\s*([\d.]+)/, PAUSED_RE = /paused=\s*([\d.]+)/;
+  if (iStep < 0 && iMsg >= 0 && rows.slice(1).some(r => STEP_RE.test(r[iMsg] || ''))) {
+    // Robot text log: one "step=NAME active=Xs paused=Ys" message per step; Log ID identifies the stop.
+    format = 'log';
+    const iTime = find(['time', 'timestamp', 'datetime']);
+    rows.slice(1).forEach(r => {
+      const msg = r[iMsg] || '', m = msg.match(STEP_RE), a = msg.match(ACTIVE_RE);
+      if (!m || !a) return;
+      const k = mapStep(m[1]);
+      if (!k || k === ALIGN_INT) { meta.unmatched[m[1]] = 1; return; }
+      const pz = msg.match(PAUSED_RE);
+      const route = routeOf(r), stop = iStop >= 0 ? (r[iStop] || '').trim() : '0';
+      curTag = tagFor(route, stop);
+      push(k, parseFloat(a[1]), pz ? parseFloat(pz[1]) : 0); matched++;
+      if (perStopKey(k)) {
+        noteStop(route, stop, iTime >= 0 ? (r[iTime] || '').trim() : '');
+        if (k === 'loadPackage') { const sk = route + '|' + stop; loadsByStop.set(sk, (loadsByStop.get(sk) || 0) + 1); }
+      }
+    });
+  } else if (iStep >= 0 && iDur >= 0) {
+    format = 'long';
+    const autoStop = {}, alignSeen = new Map();
+    rows.slice(1).forEach(r => {
+      const raw = r[iStep] || '';
+      let k = mapStep(raw);
+      if (!k) { if (raw.trim()) meta.unmatched[raw.trim()] = 1; return; }
+      const route = routeOf(r);
+      if (k === 'park' && iStop < 0) autoStop[route] = (autoStop[route] || 0) + 1;
+      const stop = iStop >= 0 ? (r[iStop] || '').trim() : String(autoStop[route] || 0);
+      const sk = route + '|' + stop;
+      if (k === ALIGN_INT) { const n = alignSeen.get(sk) || 0; alignSeen.set(sk, n + 1); k = n === 0 ? 'alignInt1' : 'alignInt2'; }
+      if (k === 'stops') explicitStops = true;
+      curTag = tagFor(route, stop);
+      push(k, read(k, r[iDur])); matched++;
+      if (perStopKey(k)) {
+        noteStop(route, stop);
+        if (k === 'loadPackage') loadsByStop.set(sk, (loadsByStop.get(sk) || 0) + 1);
+      }
+    });
+  } else {
+    format = 'wide';
+    const colKey = []; let alignCount = 0;
+    nh.forEach((h, i) => {
+      if (i === iRoute || i === iStop) return;
+      let k = mapStep(h);
+      if (k === ALIGN_INT) k = alignCount++ === 0 ? 'alignInt1' : 'alignInt2';
+      if (k) colKey[i] = k; else if (h) meta.unmatched[header[i]] = 1;
+    });
+    if (!colKey.some(Boolean)) throw new Error(`${fileName}: none of the column names match a step`);
+    if (colKey.includes('stops')) explicitStops = true;
+    rows.slice(1).forEach((r, ri) => {
+      const route = routeOf(r), stop = iStop >= 0 ? (r[iStop] || '').trim() : String(ri);
+      let perStop = false;
+      curTag = tagFor(route, stop);
+      colKey.forEach((k, i) => {
+        const cell = r[i];
+        if (cell == null || cell.trim() === '') return;
+        push(k, read(k, cell)); matched++;
+        if (perStopKey(k)) perStop = true;
+      });
+      if (perStop) noteStop(route, stop);
+    });
+  }
+  // A robot log export is a set of stops, not necessarily a whole route, so it doesn't set stops per route.
+  curTag = fi + '::'; // route-level counts belong to the file as a whole
+  if (!explicitStops && format !== 'log') stopsByRoute.forEach(set => push('stops', set.size));
+  loadsByStop.forEach((n, sk) => { curTag = `${fi}::${sk}`; push('trips', n); });
+  // Rows that only carried route-level values (e.g. vehicle prep) aren't stops; fold their values into FIELD.route.
+  let nStops = 0;
+  recs.forEach(rec => {
+    if (rec.isStop) { delete rec.isStop; FIELD.stops.push(rec); nStops++; }
+    else for (const k in rec.steps) (FIELD.route[k] = FIELD.route[k] || []).push(...rec.steps[k]);
+  });
+  meta.files.push({ name: fileName, rows: rows.length - 1, format, routes: stopsByRoute.size, stops: nStops, values: matched });
+}
+
+async function importCsvFiles(files) {
+  if (!files.length) return;
+  if (!FIELD) FIELD = { stops: [], route: {}, off: {}, meta: { files: [], unmatched: {} }, edits: {} };
+  legacyData = false;
+  const errors = [];
+  for (const f of files) {
+    try { ingest(await f.text(), f.name); } catch (err) { errors.push(err.message); }
+  }
+  if (!FIELD.meta.files.length) { FIELD = null; }
+  saveField();
+  if (FIELD && mode === 'ideal') mode = 'field';
+  render();
+  flash(errors.length ? `Some files were skipped: ${errors.join('; ')}` : `Imported ${files.length} file${files.length > 1 ? 's' : ''}.`, 8000);
+}
+
+// ---------- Persistence ----------
+const LS_KEY = 'lmd-mission-profile-field-v1';
+function saveField() {
+  try {
+    if (FIELD) localStorage.setItem(LS_KEY, JSON.stringify({ ...fieldForSave(), stat, includePaused }));
+    else localStorage.removeItem(LS_KEY);
+  } catch (e) { /* storage unavailable: field data lasts for this page session only */ }
+}
+const fieldForSave = () => ({ stops: FIELD.stops, route: FIELD.route, off: FIELD.off, meta: FIELD.meta, edits: FIELD.edits });
+// Older saves stored pooled samples without per-stop records; those can't be split into stops, so ask for a re-import.
+function restoreField(o) {
+  if (!o || !Array.isArray(o.stops)) { if (o && o.samples) legacyData = true; return null; }
+  return { stops: o.stops, route: o.route || {}, off: o.off || {}, meta: o.meta, edits: o.edits || {} };
+}
+function loadField() {
+  try {
+    const o = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+    FIELD = restoreField(o);
+    if (FIELD) { stat = o.stat || 'mean'; includePaused = !!o.includePaused; }
+  } catch (e) { FIELD = null; }
+}
+function loadFromHash() {
+  const h = location.hash.slice(1);
+  if (!h) return;
+  const p = new URLSearchParams(h);
+  for (const [k, val] of p) {
+    if (k === 'mode' && ['ideal', 'field', 'compare'].includes(val)) mode = val;
+    else if (k in DEFAULTS && val !== '' && !isNaN(+val)) IDEAL[k] = +val;
+  }
+}
+function saveToHash() {
+  const p = new URLSearchParams();
+  for (const k in IDEAL) if (IDEAL[k] !== DEFAULTS[k]) p.set(k, IDEAL[k]);
+  if (mode !== 'ideal') p.set('mode', mode);
+  const s = p.toString();
+  history.replaceState(null, '', s ? '#' + s : location.pathname + location.search);
+}
+
+// ---------- Computation ----------
+// Build the ordered segment list for one stop.
+function stopSegments() {
+  const seq = [];
+  const add = (k, label) => seq.push({ k, label: label || STEP[k].l, sec: Math.max(0, sec(k)), s: STEP[k].s, p: STEP[k].p, group: STEP[k].group,
+    missing: !!V.__logged && !V.__logged.has(k) }); // single-stop view: step not logged at this stop
+  ['park','openDoors','deployStairs','selectAddress','motorPowerOn','alignInt1','dismount','localize'].forEach(k => add(k));
+  const trips = Math.max(1, Math.round(V.trips));
+  for (let t = 0; t < trips; t++) {
+    const tag = trips > 1 ? ` (trip ${t + 1})` : '';
+    add('loadPackage', STEP.loadPackage.l + tag);
+    add('navToZone', STEP.navToZone.l + tag);
+    ['position','bow','dispense','depart'].forEach(k => add(k, STEP[k].l + tag));
+    add('navToVan', STEP.navToVan.l + tag);
+  }
+  ['alignExt','mount','alignInt2','motorPowerOff','packStairs','closeDoors','putInDrive'].forEach(k => add(k));
+  return seq;
+}
+const sum = a => a.reduce((x, y) => x + y.sec, 0);
+
+function compute() {
+  const stops = Math.max(1, Math.round(V.stops));
+  const segStd = stopSegments();
+  const tStd = sum(segStd);
+  const fixedStart = V.vehiclePrep + V.driveToStop;
+  const between = (stops - 1) * V.navNext;
+  const total = fixedStart + stops * tStd + between + V.completeRoute;
+
+  // totals by key for breakdowns
+  const byKey = {};
+  segStd.forEach(s => byKey[s.k] = (byKey[s.k] || 0) + s.sec * stops);
+  byKey.vehiclePrep = V.vehiclePrep; byKey.driveToStop = V.driveToStop;
+  byKey.navNext = between; byKey.completeRoute = V.completeRoute;
+
+  const byState = {}, byPhase = {};
+  for (const k in byKey) {
+    byState[STEP[k].s] = (byState[STEP[k].s] || 0) + byKey[k];
+    byPhase[STEP[k].p] = (byPhase[STEP[k].p] || 0) + byKey[k];
+  }
+  const cycle = tStd + V.navNext; // steady-state time per stop incl. drive to next
+  const shiftSec = V.shiftHrs * 3600;
+  // stops that fit in a shift
+  let fit = 0;
+  if (cycle > 0) fit = Math.max(0, Math.floor((shiftSec - V.vehiclePrep - V.driveToStop - V.completeRoute + V.navNext) / cycle));
+  const perUnit = {};
+  ALL_STEPS.forEach(s => perUnit[s.k] = sec(s.k));
+  return { stops, segStd, tStd, total, byKey, byState, byPhase, cycle, fit, shiftSec, perUnit, shiftHrs: V.shiftHrs };
+}
+function computeFor(m) { const prev = V; V = valuesFor(m); try { return compute(); } finally { V = prev; } }
+
+// ---------- Formatting ----------
+function fmt(sec) {
+  if (Math.abs(sec) < 59.95) return +sec.toFixed(1) + ' s'; // short steps keep one decimal
+  sec = Math.round(sec);
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  if (h) return `${h} h ${String(m).padStart(2,'0')} m`;
+  return s ? `${m} m ${String(s).padStart(2,'0')} s` : `${m} m`;
+}
+const fmtDelta = d => Math.round(d) === 0 ? '±0 s' : (d > 0 ? '+' : '−') + fmt(Math.abs(d));
+const pct = (a, b) => b ? (100 * a / b).toFixed(1) + '%' : '–';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const r1 = x => +(+x).toFixed(1);
+const MODE_NAME = { ideal: 'Ideal', field: 'Field data' };
+
+function sampleSummary(k) {
+  const a = FIELD && samplesOf(k);
+  if (!a || !a.length) return null;
+  const s = sorted(a);
+  return { n: a.length, mean: STAT_FN.mean(a), median: STAT_FN.median(a), p90: STAT_FN.p90(a), min: s[0], max: s[s.length - 1] };
+}
+function summaryText(k) {
+  const x = sampleSummary(k); if (!x) return '';
+  return `n=${x.n} · mean ${r1(x.mean)} · median ${r1(x.median)} · p90 ${r1(x.p90)} · range ${r1(x.min)}–${r1(x.max)}`;
+}
+
+function scaledText() {
+  return `Deposit was logged as one step (DEPOSIT_PACKAGES, ${summaryText('depositTotal')}). Its ${STAT_LABEL[stat]} is split across Position, Bow, Dispense and Depart in proportion to their default values.`;
+}
+
+// ---------- Controls ----------
+function fieldTag(k, calc) {
+  if (mode !== 'field' || !FIELD) return '<span></span>';
+  if (calc) {
+    const n = samplesOf('navToZone').length + samplesOf('navToVan').length;
+    const x = sampleSummary(k);
+    return n ? `<span class="tag" title="Measured ${esc(summaryText(k) || '')}. Shown as distance ÷ speed.">n=${x ? x.n : 0}</span>` : '<span class="tag ideal" title="No measured time in field data. Calculated from distance ÷ speed.">calc</span>';
+  }
+  const x = sampleSummary(k);
+  if (!x && FIELD.scaled && FIELD.scaled[k])
+    return `<span class="tag" title="${esc(scaledText())}">scaled</span>`;
+  if (!x && k === 'navSpeed' && FIELD.navMeasured != null)
+    return `<span class="tag" title="Set from the measured navigate time (${r1(FIELD.navMeasured)} s) and the distance">derived</span>`;
+  return x ? `<span class="tag" title="${esc(summaryText(k))}">n=${x.n}</span>` : '<span class="tag ideal" title="Not in field data, so the default value is used">default</span>';
+}
+function numRow(k, label, opts = {}, swatch) {
+  const sw = swatch ? `<span class="swatch" style="background:${swatch}"></span>` : '';
+  if (opts.calc) return `<div class="row" data-row="${k}"><label for="in_${k}">${sw}${esc(label)}</label>${fieldTag(k, true)}
+    <input type="number" id="in_${k}" value="${r1(navSec())}" disabled title="Calculated: distance ÷ speed" style="opacity:.7"></div>`;
+  const changed = V[k] !== baseline(k) ? ' changed' : '';
+  const shown = k === 'navSpeed' ? +(+V[k]).toFixed(3) : r1(V[k]);
+  return `<div class="row${changed}" data-row="${k}"><label for="in_${k}">${sw}${esc(label)}</label>${fieldTag(k)}
+    <input type="number" id="in_${k}" data-k="${k}" value="${shown}" min="${opts.min ?? 0}" ${opts.max != null ? `max="${opts.max}"` : ''} step="${opts.step ?? 1}"></div>`;
+}
+function colorFor(st) {
+  const list = colorMode === 'state' ? STATES : PHASES;
+  const id = colorMode === 'state' ? st.s : st.p;
+  return list.find(x => x.id === id).color;
+}
+function groupTotal(g) {
+  let t = 0; (g.steps || []).forEach(s => t += sec(s.k)); (g.sub || []).forEach(sg => t += groupTotal(sg)); return t;
+}
+function buildControls() {
+  document.getElementById('routeInputs').innerHTML = ROUTE_INPUTS.map(r => numRow(r.k, r.l, r)).join('');
+  const open = new Set([...document.querySelectorAll('#stepInputs details[open]')].map(d => d.dataset.g));
+  const first = !document.querySelector('#stepInputs details');
+  document.getElementById('stepInputs').innerHTML = GROUPS.map(g => {
+    const inner = g.sub
+      ? g.sub.map(sg => `<div class="subgroup"><div class="subgroup-title">${esc(sg.name)}</div>${sg.steps.map(s => numRow(s.k, s.l, { calc: s.calc }, colorFor(s))).join('')}</div>`).join('')
+      : g.steps.map(s => numRow(s.k, s.l, {}, colorFor(s))).join('');
+    const isOpen = first ? g.name === 'Delivery' : open.has(g.name);
+    return `<details data-g="${esc(g.name)}" ${isOpen ? 'open' : ''}><summary>${esc(g.name)}<span class="tot" data-gt="${esc(g.name)}">${fmt(groupTotal(g))}</span></summary>${inner}</details>`;
+  }).join('');
+}
+// ---------- Imported stops table ----------
+// Columns follow the model's order of operations; Deposit (logged as one step) sits where the Deposit sub-steps are.
+const STOP_COL_ORDER = ALL_STEPS.flatMap(s => s.k === 'position' ? ['depositTotal', 'position'] : [s.k]);
+const colLabel = k => k === 'depositTotal' ? 'Deposit' : STEP[k].l;
+const stopMean = (s, k) => { const a = s.steps[k]; return a && a.length ? a.reduce((x, o) => x + occ(o), 0) / a.length : null; };
+const stopTotal = s => Object.entries(s.steps).reduce((t, [k, a]) => t + (NUMERIC_KEYS.has(k) ? 0 : a.reduce((x, o) => x + occ(o), 0)), 0);
+const shortTime = t => String(t || '').replace(/\.\d+$/, '');
+
+function buildStopsTable() {
+  const card = document.getElementById('stopsCard');
+  card.hidden = !(mode !== 'ideal' && FIELD);
+  if (card.hidden) return;
+  const stops = FIELD.stops, off = FIELD.off || (FIELD.off = {});
+  const cols = STOP_COL_ORDER.filter(k => stops.some(s => s.steps[k] && s.steps[k].length));
+  const nSel = stops.filter(isSelected).length;
+  document.getElementById('stopsCount').textContent = `${nSel} of ${stops.length} stops selected`;
+  const head = `<thead><tr><th></th><th>Log ID</th><th>Start</th>${cols.map(k => `<th class="n">${esc(colLabel(k))}</th>`).join('')}<th class="n">Logged total</th></tr></thead>`;
+  const body = stops.map(s => {
+    const sel = isSelected(s), viewing = s.tag === viewTag;
+    const cells = cols.map(k => {
+      const m = stopMean(s, k), n = (s.steps[k] || []).length;
+      return `<td class="n">${m == null ? '<span class="missing">–</span>' : r1(m) + (n > 1 ? `<span class="missing"> ×${n}</span>` : '')}</td>`;
+    }).join('');
+    return `<tr class="${sel ? '' : 'excluded'}${viewing ? ' viewing' : ''}" data-tag="${esc(s.tag)}">
+      <td><input type="checkbox" data-sel="${esc(s.tag)}" ${sel ? 'checked' : ''} aria-label="Include stop ${esc(s.id)}"></td>
+      <td><button class="linkbtn" data-view="${esc(s.tag)}" title="${viewing ? 'Hide from' : 'Show on'} the timeline · ${esc(s.file)}">${esc(s.id)}</button></td>
+      <td class="nowrap">${esc(shortTime(s.time))}</td>${cells}<td class="n"><b>${fmt(stopTotal(s))}</b></td></tr>`;
+  }).join('');
+  const agg = cols.map(k => { const a = samplesOf(k); return `<td class="n">${a.length ? r1(STAT_FN[stat](a)) : '–'}</td>`; }).join('');
+  const foot = `<tfoot><tr><th></th><th colspan="2">${esc(STAT_LABEL[stat][0].toUpperCase() + STAT_LABEL[stat].slice(1))} of selected</th>${agg}<th></th></tr></tfoot>`;
+  document.getElementById('stopsTable').innerHTML = head + `<tbody>${body}</tbody>` + foot;
+}
+function setSelection(fn) { fn(FIELD.off || (FIELD.off = {})); saveField(); render(); }
+document.getElementById('stopsTable').addEventListener('change', e => {
+  const tag = e.target.dataset.sel; if (tag == null) return;
+  const on = e.target.checked;
+  setSelection(off => { if (on) delete off[tag]; else off[tag] = true; });
+});
+document.getElementById('stopsTable').addEventListener('click', e => {
+  const tag = e.target.dataset && e.target.dataset.view; if (tag == null) return;
+  viewTag = viewTag === tag ? null : tag;
+  render();
+});
+document.getElementById('stopsAll').onclick = () => setSelection(off => Object.keys(off).forEach(k => delete off[k]));
+document.getElementById('stopsNone').onclick = () => setSelection(off => FIELD.stops.forEach(s => off[s.tag] = true));
+
+// Values for showing one stop on its own: its logged steps, with the Field data values for anything it didn't log.
+function stopValues(s) {
+  const o = { ...valuesFor('field'), __logged: new Set(), __nav: {} };
+  for (const k in s.steps) {
+    const m = stopMean(s, k);
+    if (m == null || NUMERIC_KEYS.has(k)) continue;
+    if (k === 'depositTotal') {
+      if (DEPOSIT_KEYS.some(d => s.steps[d])) continue;
+      splitDeposit(m, o); DEPOSIT_KEYS.forEach(d => o.__logged.add(d));
+    } else if (STEP[k] && STEP[k].calc) { o.__nav[k] = m; o.__logged.add(k); }
+    else if (STEP[k]) { o[k] = m; o.__logged.add(k); }
+  }
+  return o;
+}
+
+function buildFieldBox() {
+  const box = document.getElementById('fieldBox');
+  box.hidden = !(mode !== 'ideal' && FIELD);
+  if (box.hidden) return;
+  const m = FIELD.meta;
+  const sel = selectedStops();
+  const routes = new Set(sel.map(s => s.file + '|' + s.route)).size;
+  const stops = sel.length;
+  const stepKeys = ALL_STEPS.map(s => s.k);
+  const found = stepKeys.filter(k => sampleSummary(k) || (STEP[k].calc && FIELD.navMeasured != null) || (FIELD.scaled && FIELD.scaled[k]));
+  let pausedTotal = 0;
+  sel.forEach(s => Object.values(s.steps).forEach(a => a.forEach(o => pausedTotal += o.p)));
+  const missing = ALL_STEPS.filter(s => !found.includes(s.k)).map(s => s.l);
+  const unmatched = Object.keys(m.unmatched);
+  document.getElementById('fieldSummary').innerHTML =
+    `<p><b>${stops}</b> of ${FIELD.stops.length} stops selected · <b>${m.files.length}</b> file${m.files.length > 1 ? 's' : ''} · <b>${routes}</b> route${routes === 1 ? '' : 's'} · <b>${found.length}/${stepKeys.length}</b> steps found</p>` +
+    `<p>${m.files.map(f => `${esc(f.name)} (${f.format}, ${f.rows} rows)`).join('<br>')}</p>` +
+    (missing.length ? `<p title="${esc(missing.join(', '))}">Using default values for: ${esc(missing.slice(0, 6).join(', '))}${missing.length > 6 ? ` and ${missing.length - 6} more` : ''}</p>` : '') +
+    (unmatched.length ? `<p title="${esc(unmatched.join(', '))}">Ignored names that don't match a step: ${esc(unmatched.slice(0, 6).join(', '))}${unmatched.length > 6 ? ` and ${unmatched.length - 6} more` : ''}</p>` : '');
+  document.getElementById('statSel').value = stat;
+  document.getElementById('pausedRow').hidden = !(pausedTotal > 0);
+  document.getElementById('pausedChk').checked = includePaused;
+  document.getElementById('pausedNote').textContent = `${r1(pausedTotal)} s of paused time in the data`;
+}
+
+document.getElementById('controls').addEventListener('input', e => {
+  const k = e.target.dataset && e.target.dataset.k;
+  if (!k) return;
+  const v = parseFloat(e.target.value);
+  if (isNaN(v)) return;
+  if (mode === 'field' && FIELD) { FIELD.edits[k] = v; if (k === 'navDist') buildFieldBase(); saveField(); } else IDEAL[k] = v;
+  refreshV();
+  e.target.closest('.row').classList.toggle('changed', V[k] !== baseline(k));
+  ALL_STEPS.filter(s => s.calc).forEach(s => { document.getElementById('in_' + s.k).value = r1(navSec()); });
+  GROUPS.forEach(g => { const el = document.querySelector(`[data-gt="${CSS.escape(g.name)}"]`); if (el) el.textContent = fmt(groupTotal(g)); });
+  update();
+});
+document.getElementById('pausedChk').addEventListener('change', e => {
+  includePaused = e.target.checked; buildFieldBase(); saveField(); render();
+});
+document.getElementById('statSel').addEventListener('change', e => {
+  stat = e.target.value; buildFieldBase(); saveField(); render();
+});
+
+// ---------- Charts ----------
+const tip = document.getElementById('tip');
+function showTip(e, html) { tip.innerHTML = html; tip.style.display = 'block'; moveTip(e); }
+function moveTip(e) {
+  const r = tip.getBoundingClientRect();
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function hideTip() { tip.style.display = 'none'; }
+
+function legend(el, list, present, anyMissing) {
+  el.innerHTML = list.filter(x => present.has(x.id)).map(x => `<span><span class="swatch" style="background:${x.color}"></span>${esc(x.name)}</span>`).join('') +
+    (anyMissing ? `<span><span class="swatch" style="border:1.5px solid var(--text-muted);background:transparent"></span>Transparent box = default value, not from field data</span>` : '');
+}
+// A value that isn't backed by real data: a transparent box outlined in the step's color.
+function missingBox(x0, y, w, h, color, attrs) {
+  const inset = Math.min(1, w / 4);
+  return `<rect class="seg missing-seg" ${attrs} x="${x0 + inset}" y="${y + 1}" width="${Math.max(0.5, w - 2 * inset)}" height="${h - 2}" fill="${color}" fill-opacity="0.12" stroke="${color}" stroke-width="1.5"/>`;
+}
+
+function drawStopChart(ALL, one) {
+  const el = document.getElementById('stopChart');
+  const W = el.clientWidth || 800;
+  const labelW = 120, rightW = 150, barH = 34, gap = 22, top = 8;
+  // Ideal and Field modes each stand alone; only the comparison mode draws them together.
+  const modes = mode === 'compare' ? ['ideal', 'field'] : [mode];
+  const rows = modes.map(m => ({ m, name: MODE_NAME[m], segs: ALL[m].segStd, t: ALL[m].tStd }));
+  if (one) rows.push({ m: 'stop', name: `Log ${one.stop.id}`, segs: one.R.segStd, t: one.R.tStd, stop: one.stop });
+  const max = Math.max(...rows.map(r => r.t), 1);
+  const plotW = Math.max(100, W - labelW - rightW);
+  const x = s => labelW + (s / max) * plotW;
+  const H = top + rows.length * (barH + gap) + 18;
+  const niceStep = [5,10,15,30,60,120,300,600].find(s => max / s <= 8) || 600;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Stacked timeline of steps in one stop">`;
+  for (let t = 0; t <= max; t += niceStep) {
+    svg += `<line x1="${x(t)}" x2="${x(t)}" y1="${top}" y2="${H - 18}" stroke="var(--grid)" stroke-width="1"/>`;
+    svg += `<text class="muted" x="${x(t)}" y="${H - 4}" text-anchor="middle">${t >= 60 ? (t/60) + 'm' : t + 's'}</text>`;
+  }
+  const present = new Set();
+  let anyMissing = false;
+  rows.forEach((r, i) => {
+    const y = top + i * (barH + gap);
+    const active = r.m === mode;
+    svg += `<text class="${active ? 'strong' : ''}" x="0" y="${y + barH / 2 + 4}">${r.name}${active && rows.length > 1 ? ' ◂' : ''}</text>`;
+    let acc = 0;
+    r.segs.forEach((s, j) => {
+      if (s.sec <= 0) return;
+      present.add(colorMode === 'state' ? s.s : s.p);
+      const x0 = x(acc), w = Math.max(0.5, x(acc + s.sec) - x0);
+      const first = j === 0, last = j === r.segs.length - 1;
+      svg += s.missing ? missingBox(x0, y, w, barH, colorFor(s), `data-i="${i}" data-j="${j}"`)
+        : `<rect class="seg" data-i="${i}" data-j="${j}" x="${x0}" y="${y}" width="${w}" height="${barH}" rx="${first || last ? 4 : 0}" fill="${colorFor(s)}"/>`;
+      if (s.missing) anyMissing = true;
+      acc += s.sec;
+    });
+    const delta = rows[0].m === 'ideal' && r.m !== 'ideal' ? ` (${fmtDelta(r.t - rows[0].t)})` : '';
+    svg += `<text class="strong" x="${x(r.t) + 8}" y="${y + barH / 2 + 4}">${fmt(r.t)}<tspan class="muted" style="font-weight:400">${delta}</tspan></text>`;
+  });
+  svg += `<line x1="${labelW}" x2="${labelW}" y1="${top}" y2="${H - 18}" stroke="var(--axis)"/>`;
+  svg += '</svg>';
+  el.innerHTML = svg;
+  legend(document.getElementById('legend1'), colorMode === 'state' ? STATES : PHASES, present, anyMissing);
+  el.querySelectorAll('.seg').forEach(rect => {
+    const r = rows[+rect.dataset.i], s = r.segs[+rect.dataset.j];
+    const start = r.segs.slice(0, +rect.dataset.j).reduce((a, b) => a + b.sec, 0);
+    const grp = colorMode === 'state' ? STATES.find(x => x.id === s.s).name : PHASES.find(x => x.id === s.p).name;
+    let extra = '';
+    if (r.m === 'stop') {
+      const n = (r.stop.steps[s.k] || []).length;
+      extra = `<br><span style="color:var(--text-muted)">${s.missing ? 'Not logged at this stop, so the Field data value is shown'
+        : DEPOSIT_KEYS.includes(s.k) && !r.stop.steps[s.k] ? 'Share of the Deposit time logged at this stop'
+        : n > 1 ? `Logged ${n} times at this stop (average shown)` : 'Logged at this stop'}</span>`;
+    } else if (r.m === 'field') {
+      const sm = summaryText(s.k);
+      extra = sm ? `<br><span style="color:var(--text-muted)">${esc(sm)}</span>` : `<br><span style="color:var(--text-muted)">${STEP[s.k].calc ? 'Calculated from distance ÷ speed' : FIELD.scaled && FIELD.scaled[s.k] ? esc(scaledText()) : 'Not in field data, so the default value is used'}</span>`;
+    }
+    const html = `<b>${esc(s.label)}</b> · ${r.name}<br>${esc(s.group)}<br>${fmt(s.sec)} &nbsp;·&nbsp; ${pct(s.sec, r.t)} of stop<br><span style="color:var(--text-muted)">t = ${fmt(start)} → ${fmt(start + s.sec)} · ${esc(grp)}</span>${extra}`;
+    rect.addEventListener('mouseenter', e => { showTip(e, html); highlightRow(s.k, true); });
+    rect.addEventListener('mousemove', moveTip);
+    rect.addEventListener('mouseleave', () => { hideTip(); highlightRow(s.k, false); });
+  });
+}
+function highlightRow(k, on) {
+  const row = document.querySelector(`[data-row="${k}"]`);
+  if (row) row.style.background = on ? 'var(--grid)' : '';
+}
+
+// Field mode: one log is one stop, so the breakdown covers a single stop rather than a whole route.
+// Each category bar is split into the part backed by field data (solid) and the default part (transparent box).
+function drawStopBreakdown(R) {
+  document.getElementById('routeTitle').textContent = 'Where the stop time goes (Field data, one stop)';
+  const el = document.getElementById('routeChart');
+  const W = el.clientWidth || 800;
+  const list = colorMode === 'state' ? STATES : PHASES, catOf = s => colorMode === 'state' ? s.s : s.p;
+  const T = R.tStd;
+  const items = list.map(c => {
+    const segs = R.segStd.filter(s => catOf(s) === c.id);
+    return { ...c, real: segs.filter(s => !s.missing).reduce((a, s) => a + s.sec, 0), def: segs.filter(s => s.missing).reduce((a, s) => a + s.sec, 0) };
+  }).filter(it => it.real + it.def > 0);
+  const max = Math.max(...items.map(it => it.real + it.def), 1);
+  const labelW = 210, rightW = 170, barH = 18, gap = 10;
+  const plotW = Math.max(100, W - labelW - rightW);
+  const H = items.length * (barH + gap);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Stop time by category">`;
+  items.forEach((it, i) => {
+    const y = i * (barH + gap), wr = (it.real / max) * plotW, wd = (it.def / max) * plotW;
+    svg += `<text x="0" y="${y + barH / 2 + 4}">${esc(it.name)}</text>`;
+    if (wr > 0) svg += `<rect class="seg" data-i="${i}" x="${labelW}" y="${y}" width="${Math.max(1, wr)}" height="${barH}" rx="4" fill="${it.color}"/>`;
+    if (wd > 0) svg += missingBox(labelW + wr, y, Math.max(1, wd), barH, it.color, `data-i="${i}"`);
+    svg += `<text class="muted" x="${labelW + wr + wd + 8}" y="${y + barH / 2 + 4}">${fmt(it.real + it.def)} · ${pct(it.real + it.def, T)} of stop</text>`;
+  });
+  svg += '</svg>';
+  el.innerHTML = svg;
+  el.querySelectorAll('.seg').forEach(rect => {
+    const it = items[+rect.dataset.i];
+    const html = `<b>${esc(it.name)}</b><br>${fmt(it.real + it.def)} per stop · ${pct(it.real + it.def, T)} of stop<br>From field data: ${fmt(it.real)}${it.def > 0 ? `<br>Default values (not from data): ${fmt(it.def)}` : ''}`;
+    rect.addEventListener('mouseenter', e => showTip(e, html));
+    rect.addEventListener('mousemove', moveTip);
+    rect.addEventListener('mouseleave', hideTip);
+  });
+
+  // Table: one row per step in the stop, in order of operations (repeated trips are combined).
+  const byKey = {};
+  R.segStd.forEach(s => byKey[s.k] = (byKey[s.k] || 0) + s.sec);
+  const rows = ALL_STEPS.filter(s => byKey[s.k] > 0).map(s => ({ s, t: byKey[s.k] }));
+  rows.forEach((r, i) => r.first = i === 0 || rows[i - 1].s.group !== r.s.group);
+  const source = k => {
+    if (!isMeasured(k)) return '<span class="missing">default</span>';
+    if (FIELD.scaled && FIELD.scaled[k]) return 'field data (scaled)';
+    const n = STEP[k].calc ? samplesOf('navToZone').length + samplesOf('navToVan').length : samplesOf(k).length;
+    return `field data, n=${n}`;
+  };
+  const real = R.segStd.filter(s => !s.missing).reduce((a, s) => a + s.sec, 0);
+  document.getElementById('routeTable').innerHTML =
+    `<thead><tr><th>Group</th><th>Step</th><th class="n">Per stop</th><th class="n">Share of stop</th><th>Source</th></tr></thead><tbody>` +
+    rows.map(r => `<tr${r.first ? ' class="grp-start"' : ''}><td>${r.first ? esc(r.s.group) : ''}</td><td><span class="swatch" style="display:inline-block;margin-right:6px;${isMeasured(r.s.k) ? `background:${colorFor(r.s)}` : `border:1.5px solid ${colorFor(r.s)}`}"></span>${esc(r.s.l)}</td><td class="n">${fmt(r.t)}</td><td class="n">${pct(r.t, T)}</td><td>${source(r.s.k)}</td></tr>`).join('') +
+    `</tbody><tfoot><tr><th colspan="2">Total per stop</th><th class="n">${fmt(T)}</th><th class="n">100%</th><th>${fmt(real)} (${pct(real, T)}) from field data</th></tr></tfoot>`;
+}
+
+function drawRouteChart(R, ALL) {
+  if (mode === 'field') return drawStopBreakdown(R);
+  if (mode === 'compare') return drawCompareBreakdown(ALL);
+  document.getElementById('routeTitle').textContent = `Where the route time goes (${MODE_NAME[mode]})`;
+  const el = document.getElementById('routeChart');
+  const W = el.clientWidth || 800;
+  const list = colorMode === 'state' ? STATES : PHASES;
+  const data = colorMode === 'state' ? R.byState : R.byPhase;
+  const items = list.map(x => ({ ...x, sec: data[x.id] || 0 })).filter(x => x.sec > 0);
+  const max = Math.max(...items.map(x => x.sec), 1);
+  const labelW = 210, rightW = 130, barH = 18, gap = 10;
+  const plotW = Math.max(100, W - labelW - rightW);
+  const H = items.length * (barH + gap);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Route time by category">`;
+  items.forEach((it, i) => {
+    const y = i * (barH + gap);
+    const w = Math.max(1, (it.sec / max) * plotW);
+    svg += `<text x="0" y="${y + barH / 2 + 4}">${esc(it.name)}</text>`;
+    svg += `<rect class="seg" data-i="${i}" x="${labelW}" y="${y}" width="${w}" height="${barH}" rx="4" fill="${it.color}"/>`;
+    svg += `<text class="muted" x="${labelW + w + 8}" y="${y + barH / 2 + 4}">${fmt(it.sec)} · ${pct(it.sec, R.total)}</text>`;
+  });
+  svg += '</svg>';
+  el.innerHTML = svg;
+  el.querySelectorAll('.seg').forEach(rect => {
+    const it = items[+rect.dataset.i];
+    const html = `<b>${esc(it.name)}</b><br>${fmt(it.sec)} over the route<br>${pct(it.sec, R.total)} of total · ${fmt(it.sec / R.stops)} per stop`;
+    rect.addEventListener('mouseenter', e => showTip(e, html));
+    rect.addEventListener('mousemove', moveTip);
+    rect.addEventListener('mouseleave', hideTip);
+  });
+
+  // Table: per-step detail. Rows follow the input panel's order of operations; the group name is shown once per run of steps.
+  const rows = ALL_STEPS.filter(s => (R.byKey[s.k] || 0) > 0).map(s => ({ s, t: R.byKey[s.k] }));
+  rows.forEach((r, i) => r.first = i === 0 || rows[i - 1].s.group !== r.s.group);
+  document.getElementById('routeTable').innerHTML =
+    `<thead><tr><th>Group</th><th>Step</th><th class="n">Per unit</th><th class="n">Route total</th><th class="n">Share</th></tr></thead><tbody>` +
+    rows.map(r => `<tr${r.first ? ' class="grp-start"' : ''}><td>${r.first ? esc(r.s.group) : ''}</td><td><span class="swatch" style="display:inline-block;margin-right:6px;background:${colorFor(r.s)}"></span>${esc(r.s.l)}</td><td class="n">${fmt(R.perUnit[r.s.k])}</td><td class="n">${fmt(r.t)}</td><td class="n">${pct(r.t, R.total)}</td></tr>`).join('') +
+    `</tbody><tfoot><tr><th colspan="3">Total (${MODE_NAME[mode]})</th><th class="n">${fmt(R.total)}</th><th class="n">100%</th></tr></tfoot>`;
+}
+
+// Comparison mode: Ideal vs Field data for one stop (field data is per stop, so neither is scaled to a route).
+// Each category gets two bars: Ideal on top, Field data below (its default-value part drawn as a transparent box).
+function drawCompareBreakdown(ALL) {
+  document.getElementById('routeTitle').textContent = 'Where the stop time goes: Field data vs Ideal (one stop)';
+  const I = ALL.ideal, F = ALL.field;
+  const el = document.getElementById('routeChart');
+  const W = el.clientWidth || 800;
+  const list = colorMode === 'state' ? STATES : PHASES, catOf = s => colorMode === 'state' ? s.s : s.p;
+  const sumOf = (segs, pred) => segs.filter(pred).reduce((a, s) => a + s.sec, 0);
+  const items = list.map(c => ({ ...c,
+    ideal: sumOf(I.segStd, s => catOf(s) === c.id),
+    real: sumOf(F.segStd, s => catOf(s) === c.id && !s.missing),
+    def: sumOf(F.segStd, s => catOf(s) === c.id && s.missing),
+  })).filter(it => it.ideal + it.real + it.def > 0);
+  const max = Math.max(...items.map(it => Math.max(it.ideal, it.real + it.def)), 1);
+  const labelW = 210, rightW = 190, bh = 13, inner = 3, gap = 14;
+  const rowH = bh * 2 + inner;
+  const plotW = Math.max(100, W - labelW - rightW);
+  const H = items.length * (rowH + gap);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Stop time by category, Ideal vs Field data">`;
+  items.forEach((it, i) => {
+    const y = i * (rowH + gap), yF = y + bh + inner;
+    const wi = (it.ideal / max) * plotW, wr = (it.real / max) * plotW, wd = (it.def / max) * plotW;
+    const fTot = it.real + it.def;
+    svg += `<text x="0" y="${y + rowH / 2 + 4}">${esc(it.name)}</text>`;
+    if (wi > 0) svg += `<rect class="seg" data-i="${i}" x="${labelW}" y="${y}" width="${Math.max(1, wi)}" height="${bh}" rx="3" fill="${it.color}" fill-opacity="0.55"/>`;
+    svg += `<text class="muted" x="${labelW + wi + 8}" y="${y + bh - 2}">Ideal ${fmt(it.ideal)}</text>`;
+    if (wr > 0) svg += `<rect class="seg" data-i="${i}" x="${labelW}" y="${yF}" width="${Math.max(1, wr)}" height="${bh}" rx="3" fill="${it.color}"/>`;
+    if (wd > 0) svg += missingBox(labelW + wr, yF, Math.max(1, wd), bh, it.color, `data-i="${i}"`);
+    svg += `<text class="muted" x="${labelW + wr + wd + 8}" y="${yF + bh - 2}">Field ${fmt(fTot)} (${fmtDelta(fTot - it.ideal)})</text>`;
+  });
+  svg += '</svg>';
+  el.innerHTML = svg;
+  el.querySelectorAll('.seg').forEach(rect => {
+    const it = items[+rect.dataset.i], fTot = it.real + it.def;
+    const html = `<b>${esc(it.name)}</b><br>Ideal: ${fmt(it.ideal)}<br>Field data: ${fmt(fTot)} (${fmtDelta(fTot - it.ideal)})${it.def > 0 ? `<br><span style="color:var(--text-muted)">${fmt(it.def)} of the Field value is default, not from the logs</span>` : ''}`;
+    rect.addEventListener('mouseenter', e => showTip(e, html));
+    rect.addEventListener('mousemove', moveTip);
+    rect.addEventListener('mouseleave', hideTip);
+  });
+
+  // Table: Ideal vs Field per stop, step by step.
+  const per = segs => { const o = {}; segs.forEach(s => o[s.k] = (o[s.k] || 0) + s.sec); return o; };
+  const pi = per(I.segStd), pf = per(F.segStd);
+  const rows = ALL_STEPS.filter(s => (pi[s.k] || 0) + (pf[s.k] || 0) > 0).map(s => ({ s }));
+  rows.forEach((r, i) => r.first = i === 0 || rows[i - 1].s.group !== r.s.group);
+  const src = k => isMeasured(k) ? (FIELD.scaled && FIELD.scaled[k] ? 'field data (scaled)' : 'field data') : '<span class="missing">default</span>';
+  document.getElementById('routeTable').innerHTML =
+    `<thead><tr><th>Group</th><th>Step</th><th class="n">Ideal</th><th class="n">Field</th><th class="n">Field − Ideal</th><th>Field source</th></tr></thead><tbody>` +
+    rows.map(r => `<tr${r.first ? ' class="grp-start"' : ''}><td>${r.first ? esc(r.s.group) : ''}</td><td><span class="swatch" style="display:inline-block;margin-right:6px;background:${colorFor(r.s)}"></span>${esc(r.s.l)}</td><td class="n">${fmt(pi[r.s.k] || 0)}</td><td class="n">${fmt(pf[r.s.k] || 0)}</td><td class="n">${fmtDelta((pf[r.s.k] || 0) - (pi[r.s.k] || 0))}</td><td>${src(r.s.k)}</td></tr>`).join('') +
+    `</tbody><tfoot><tr><th colspan="2">Total per stop</th><th class="n">${fmt(I.tStd)}</th><th class="n">${fmt(F.tStd)}</th><th class="n">${fmtDelta(F.tStd - I.tStd)}</th><th></th></tr></tfoot>`;
+}
+
+function drawCompareTiles(ALL) {
+  const I = ALL.ideal, F = ALL.field, d = F.tStd - I.tStd;
+  const real = F.segStd.filter(s => !s.missing).reduce((a, s) => a + s.sec, 0);
+  const tiles = [
+    { k: 'Ideal time per stop', v: fmt(I.tStd), d: 'From the Ideal inputs' },
+    { k: 'Field time per stop', v: fmt(F.tStd), d: `${STAT_LABEL[stat][0].toUpperCase() + STAT_LABEL[stat].slice(1)} of ${selectedStops().length} selected stops` },
+    { k: 'Field − Ideal', v: fmtDelta(d), d: I.tStd ? `${d >= 0 ? '+' : '−'}${Math.abs(100 * d / I.tStd).toFixed(1)}% vs Ideal` : '' },
+    { k: 'Field value from real data', v: pct(real, F.tStd), d: `${fmt(real)} logged · the rest uses default values` },
+  ];
+  document.getElementById('tiles').innerHTML = tiles.map(t => `<div class="tile"><div class="k">${esc(t.k)}</div><div class="v">${esc(t.v)}</div><div class="d">${esc(t.d)}</div></div>`).join('');
+}
+
+// Field mode tiles describe one stop, with no comparison to Ideal.
+function drawFieldTiles(R) {
+  const real = R.segStd.filter(s => !s.missing).reduce((a, s) => a + s.sec, 0), def = R.tStd - real;
+  const nSteps = new Set(R.segStd.map(s => s.k)), nReal = [...nSteps].filter(isMeasured).length;
+  const sel = selectedStops().length;
+  const tiles = [
+    { k: 'Time per stop', v: fmt(R.tStd), d: `${STAT_LABEL[stat][0].toUpperCase() + STAT_LABEL[stat].slice(1)} of the selected stops, delivery phase only` },
+    { k: 'From field data', v: fmt(real), d: `${pct(real, R.tStd)} of the stop · ${nReal} of ${nSteps.size} steps` },
+    { k: 'Default values', v: fmt(def), d: 'Steps not in the logs (transparent boxes)' },
+    { k: 'Stops selected', v: `${sel} of ${FIELD.stops.length}`, d: 'Each Log ID is one stop' },
+  ];
+  document.getElementById('tiles').innerHTML = tiles.map(t => `<div class="tile"><div class="k">${esc(t.k)}</div><div class="v">${esc(t.v)}</div><div class="d">${esc(t.d)}</div></div>`).join('');
+}
+
+function drawTiles(R, ALL) {
+  if (mode === 'field') return drawFieldTiles(R);
+  if (mode === 'compare') return drawCompareTiles(ALL);
+  const fits = R.total <= R.shiftSec;
+  const sph = r => r.cycle > 0 ? 3600 / r.cycle : 0;
+  const tiles = [
+    { k: 'Total route time', v: fmt(R.total), d: `${R.stops} stops · ${fits ? 'fits in' : 'exceeds'} a ${R.shiftHrs} h shift` },
+    { k: 'Time per stop', v: fmt(R.tStd), d: 'Delivery phase only, excluding driving' },
+    { k: 'Stops per hour (steady state)', v: R.cycle > 0 ? sph(R).toFixed(1) : '–', d: `Average stop + drive to next = ${fmt(R.cycle)}` },
+    { k: `Stops that fit in ${R.shiftHrs} h`, v: String(R.fit), d: 'After vehicle prep, first drive and route completion' },
+  ];
+  document.getElementById('tiles').innerHTML = tiles.map(t => `<div class="tile"><div class="k">${esc(t.k)}</div><div class="v">${esc(t.v)}</div><div class="d">${esc(t.d)}</div></div>`).join('');
+}
+
+let R, ALL;
+function update() {
+  ALL = { ideal: computeFor('ideal') };
+  if (FIELD) ALL.field = computeFor('field');
+  R = mode === 'compare' ? ALL.field : ALL[mode] || ALL.ideal;
+  drawTiles(R, ALL); drawStopChart(ALL, viewedStop()); drawRouteChart(R, ALL);
+  saveToHash();
+}
+// The stop picked in the Imported stops table, computed on its own.
+function viewedStop() {
+  const stop = FIELD && viewTag && FIELD.stops.find(s => s.tag === viewTag);
+  if (!stop || mode === 'ideal') return null;
+  const prev = V; V = stopValues(stop);
+  try { return { stop, R: compute() }; } finally { V = prev; }
+}
+function render() {
+  if (FIELD) buildFieldBase();
+  refreshV();
+  const noData = mode !== 'ideal' && !FIELD;
+  document.querySelectorAll('#modeToggle button').forEach(b => b.classList.toggle('on', b.dataset.m === mode));
+  document.getElementById('emptyField').hidden = !noData;
+  document.getElementById('outputs').hidden = noData;
+  // Comparison mode shows results only; values are edited in the Ideal or Field Data modes.
+  document.getElementById('editors').hidden = noData || mode === 'compare';
+  document.getElementById('compareNote').hidden = mode !== 'compare' || noData;
+  document.getElementById('reset').hidden = mode === 'compare';
+  document.getElementById('reset').textContent = mode === 'field' ? 'Reset to imported values' : 'Reset defaults';
+  document.getElementById('legacyNote').hidden = !(noData && legacyData);
+  buildFieldBox();
+  buildStopsTable();
+  buildControls();
+  if (noData) saveToHash(); else update();
+}
+
+// ---------- Buttons ----------
+const status = document.getElementById('status');
+function flash(msg, ms = 3000) { status.textContent = msg; clearTimeout(flash.t); flash.t = setTimeout(() => status.textContent = '', ms); }
+function download(name, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+const csvLine = l => l.map(c => `"${String(c ?? '').replace(/"/g,'""')}"`).join(',');
+
+document.getElementById('modeToggle').addEventListener('click', e => {
+  const m = e.target.dataset.m; if (!m || m === mode) return;
+  mode = m; render();
+});
+document.querySelectorAll('.csvInput').forEach(inp => inp.addEventListener('change', e => {
+  importCsvFiles([...e.target.files]); e.target.value = '';
+}));
+document.getElementById('clearField').onclick = () => {
+  if (!confirm('Remove all imported field data from this browser?')) return;
+  FIELD = null; saveField(); render(); flash('Field data cleared.');
+};
+document.querySelectorAll('.tplBtn').forEach(b => b.onclick = () => {
+  const perStop = ALL_STEPS.filter(s => DELIVERY_KEYS.has(s.k)).map(s => s.k);
+  const head = ['route', 'stop', 'vehiclePrep', 'driveToStop', 'navNext', ...perStop, 'completeRoute', 'navDist'];
+  const val = (k, row) => {
+    if (k === 'route') return 'R1';
+    if (k === 'stop') return row + 1;
+    if (STEP[k] && STEP[k].calc) return r1(IDEAL.navDist / IDEAL.navSpeed);
+    if (k === 'vehiclePrep' || k === 'driveToStop') return row === 0 ? IDEAL[k] : '';
+    if (k === 'navNext') return row === 0 ? '' : IDEAL[k];
+    if (k === 'completeRoute') return row === 2 ? IDEAL[k] : '';
+    return IDEAL[k];
+  };
+  const lines = [head, ...[0, 1, 2].map(i => head.map(k => val(k, i)))];
+  download('lmd-field-data-template.csv', lines.map(csvLine).join('\n'), 'text/csv');
+});
+document.getElementById('copyLink').onclick = async () => {
+  try { await navigator.clipboard.writeText(location.href); flash('Link copied. It includes the Ideal values. Field data stays in this browser, so use Export JSON to share it.', 6000); }
+  catch { flash('Copy failed. Copy the link from the address bar instead.'); }
+};
+document.getElementById('reset').onclick = () => {
+  if (mode === 'field' && FIELD) { FIELD.edits = {}; saveField(); flash('Field edits removed. Showing imported values.'); }
+  else { IDEAL = { ...DEFAULTS }; flash('Defaults restored.'); }
+  render();
+};
+document.getElementById('exportJson').onclick = () => {
+  const out = { version: 2, stat, includePaused, ideal: IDEAL, field: FIELD ? fieldForSave() : null };
+  download('lmd-mission-profile.json', JSON.stringify(out, null, 2), 'application/json');
+};
+document.getElementById('importJson').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  f.text().then(t => {
+    const o = JSON.parse(t);
+    const ideal = o.ideal || o; // version 1 files were a flat set of Ideal values
+    for (const k in ideal) if (k in DEFAULTS && typeof ideal[k] === 'number') IDEAL[k] = ideal[k];
+    if (o.field) {
+      const f = restoreField(o.field);
+      if (f) { FIELD = f; stat = o.stat || stat; includePaused = !!o.includePaused; saveField(); }
+    }
+    render(); flash('Scenario imported.');
+  }).catch(() => flash('That file is not valid JSON.'));
+  e.target.value = '';
+};
+document.getElementById('exportCsv').onclick = () => {
+  const both = ALL.field;
+  const lines = [['step', 'group', 'state', 'ideal_seconds_each', ...(both ? ['field_seconds_each', 'field_n'] : []), `route_total_seconds_${mode}`]];
+  ALL_STEPS.forEach(s => {
+    const x = sampleSummary(s.k);
+    lines.push([s.l, s.group, STATES.find(z => z.id === s.s).name, r1(ALL.ideal.perUnit[s.k]),
+      ...(both ? [r1(ALL.field.perUnit[s.k]), x ? x.n : ''] : []), Math.round(R.byKey[s.k] || 0)]);
+  });
+  lines.push([]);
+  const fv = valuesFor('field');
+  ROUTE_INPUTS.forEach(r => lines.push([r.l, '', '', IDEAL[r.k], ...(both ? [+(+fv[r.k]).toFixed(3), ''] : []), '']));
+  lines.push(['TOTAL', '', '', Math.round(ALL.ideal.total), ...(both ? [Math.round(ALL.field.total), ''] : []), Math.round(R.total)]);
+  download('lmd-mission-profile.csv', lines.map(csvLine).join('\n'), 'text/csv');
+};
+addEventListener('resize', () => { if (R && ALL) { drawStopChart(ALL, viewedStop()); drawRouteChart(R, ALL); } });
+
+loadField();
+loadFromHash();
+render();
+</script>
+</body>
+</html>
