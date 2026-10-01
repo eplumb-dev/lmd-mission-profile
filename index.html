@@ -116,7 +116,7 @@ table.stops tr.viewing td { background: var(--grid); }
 .importerr { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; padding: 8px 10px; border: 1px solid var(--grid); border-left: 3px solid #d03b3b; border-radius: 6px; font-size: 12px; }
 .importerr > span:first-child { color: #d03b3b; font-weight: 700; }
 .importerr > span:nth-child(2) { flex: 1; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
-.importerr[hidden] { display: none; }
+.importerr[hidden], .writeOnly[hidden] { display: none !important; }
 .tokenin { width: 100%; box-sizing: border-box; padding: 5px 7px; border: 1px solid var(--axis); border-radius: 5px; background: var(--surface-1); color: var(--text-primary); font: inherit; }
 .empty { text-align: center; padding: 40px 20px; }
 .empty p { color: var(--text-secondary); max-width: 560px; margin: 8px auto; line-height: 1.5; }
@@ -152,17 +152,17 @@ code { font-size: 12px; background: var(--grid); padding: 1px 4px; border-radius
           <div class="btns"><button id="remoteRefresh">Refresh</button><button id="remoteOff">Disconnect</button></div>
         </div>
         <form id="remoteForm" hidden>
-          <p class="note">Field data is stored in the private GitHub repo <b class="repoName"></b>. Connect with a GitHub token that can access it to see the data. Uploading and deleting stops also needs write access.</p>
+          <p class="note">Anyone can view the field data, which is stored in the public GitHub repo <b class="repoName"></b>. To upload or delete stops, connect with a GitHub token that has write access to it.</p>
           <input type="password" id="tokenIn" class="tokenin" placeholder="GitHub token (github_pat_… or ghp_…)" autocomplete="off" spellcheck="false" aria-label="GitHub token">
           <label class="note" style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" id="tokenRemember" checked> Remember on this browser</label>
           <div class="btns"><button class="primary" type="submit">Connect</button></div>
           <details class="note" style="margin-top:8px"><summary>How to get a token</summary>
             <ol style="padding-left:18px;margin:6px 0">
-              <li>Ask the repo owner to add you as a collaborator on <b class="repoName"></b>, and accept the invitation email.</li>
-              <li>On GitHub, open <a href="https://github.com/settings/tokens/new?scopes=repo&amp;description=LMD%20Mission%20Profile" target="_blank" rel="noopener">Settings → Developer settings → Tokens (classic) → Generate new token</a>, tick the <b>repo</b> scope, set an expiry and generate it.</li>
+              <li>Ask the repo owner to add you as a collaborator on <b class="repoName"></b> (needed to upload), and accept the invitation email.</li>
+              <li>On GitHub, open <a href="https://github.com/settings/tokens/new?scopes=public_repo&amp;description=LMD%20Mission%20Profile" target="_blank" rel="noopener">Settings → Developer settings → Tokens (classic) → Generate new token</a>, tick the <b>public_repo</b> scope, set an expiry and generate it.</li>
               <li>Copy the token and paste it above.</li>
             </ol>
-            The repo owner can instead use a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained token</a> limited to this one repo, with <b>Contents</b> set to Read-only or Read and write. The token is kept only in this browser and is sent only to GitHub.
+            The repo owner can instead use a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained token</a> limited to this one repo, with <b>Contents</b> set to Read and write. The token is kept only in this browser and is sent only to GitHub.
           </details>
         </form>
         <p class="note" id="remoteErr" role="alert" style="color:var(--text-primary)" hidden></p>
@@ -175,8 +175,8 @@ code { font-size: 12px; background: var(--grid); padding: 1px 4px; border-radius
         <div class="row" id="pausedRow" style="grid-template-columns:1fr auto" hidden><label for="pausedChk">Include paused time <span class="tag" id="pausedNote"></span></label>
           <input type="checkbox" id="pausedChk" style="width:16px;height:16px"></div>
         <div class="btns">
-          <label class="filebtn primary">Add CSV files<input type="file" class="csvInput" accept=".csv,.tsv,.txt,text/csv" multiple hidden></label>
-          <button id="clearField">Clear field data</button>
+          <label class="filebtn primary writeOnly">Add CSV files<input type="file" class="csvInput" accept=".csv,.tsv,.txt,text/csv" multiple hidden></label>
+          <button id="clearField" class="writeOnly">Clear field data</button>
           <button class="tplBtn">Download template</button>
         </div>
         <div class="importerr" id="importErr" role="alert" hidden><span aria-hidden="true">⚠</span><span id="importErrText"></span><button class="delbtn" id="importErrClose" aria-label="Dismiss">×</button></div>
@@ -203,10 +203,10 @@ code { font-size: 12px; background: var(--grid); padding: 1px 4px; border-radius
       <div class="card empty" id="emptyField" hidden>
         <h2 id="emptyTitle">No field data imported yet</h2>
         <p id="legacyNote" hidden><b>Your earlier import was saved in an older format that doesn't keep each stop separately. Please import the CSV files again.</b></p>
-        <p id="connectNote" hidden><b>Connect with a GitHub token under "Shared field data" on the left to see and add field data.</b></p>
+        <p id="connectNote" hidden><b>To add field data, connect with a GitHub token under "Shared field data" on the left.</b></p>
         <p>Import one or more CSV files from routes you've already run. The model takes each step's mean, median or 90th-percentile duration from the data and uses it for the Field data timing. Field Data mode is separate from your Ideal inputs: any step missing from the data uses a built-in default value and is drawn as a transparent box.</p>
         <div class="btns" id="emptyImport" style="justify-content:center">
-          <label class="filebtn primary">Import CSV files<input type="file" class="csvInput" accept=".csv,.tsv,.txt,text/csv" multiple hidden></label>
+          <label class="filebtn primary writeOnly">Import CSV files<input type="file" class="csvInput" accept=".csv,.tsv,.txt,text/csv" multiple hidden></label>
           <button class="tplBtn">Download template</button>
         </div>
         <details style="text-align:left;max-width:640px;margin:18px auto 0;border:0">
@@ -706,9 +706,9 @@ function saveToHash() {
   history.replaceState(null, '', s ? '#' + s : location.pathname + location.search);
 }
 
-// ---------- Shared data (private GitHub repo) ----------
-// Imported stops are stored in one JSON file in a private GitHub repo, so everyone sees the same stops on any
-// browser or computer. Each viewer connects with their own GitHub token; uploading and deleting need write access.
+// ---------- Shared data (public GitHub repo) ----------
+// Imported stops are stored in one JSON file in a public GitHub repo, so everyone sees the same stops on any
+// browser or computer. Anyone can view them; uploading and deleting need a GitHub token with write access.
 // Each person's own choices (stops left out, the statistic, Field edits) stay in their browser.
 const REMOTE = { owner: 'eplumb-dev', repo: 'lmd-mission-data', path: 'field-data.json' };
 const SHARED = !!REMOTE.repo;
@@ -730,13 +730,20 @@ async function ghFetch(url, opts = {}) {
 function ghError(status, msg) {
   if (status === 401) return "GitHub didn't accept the token. Check that it was copied in full and hasn't expired.";
   if (status === 403) return `the token isn't allowed to do this${msg ? ` (${msg})` : ''}. Uploading and deleting need write access to ${repoName}.`;
-  if (status === 404) return `${repoName} wasn't found. The token needs access to this private repo.`;
+  if (status === 404) return `${repoName} wasn't found. Check that the repo still exists and is public.`;
   return `GitHub returned an error (${status}${msg ? ': ' + msg : ''})`;
 }
 const b64 = s => { const u = new TextEncoder().encode(s); let bin = ''; for (let i = 0; i < u.length; i += 0x8000) bin += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(bin); };
 const unb64 = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, '')), c => c.charCodeAt(0)));
 const emptyStore = () => ({ version: 1, stops: [], route: [], files: [] });
 async function readStore() {
+  // Without a token, read the public file directly (no API rate limit). GitHub caches it for a few minutes.
+  if (!TOKEN) {
+    const r = await fetch(`https://raw.githubusercontent.com/${repoName}/main/${REMOTE.path}?t=${Date.now()}`, { cache: 'no-store' });
+    if (r.status === 404) return { store: emptyStore(), sha: null };
+    if (!r.ok) throw new Error(`GitHub returned an error (${r.status})`);
+    return { store: await r.json(), sha: null };
+  }
   const r = await ghFetch(ghUrl(`/contents/${REMOTE.path}`), { allow: [404] });
   if (r.status === 404) return { store: emptyStore(), sha: null };
   const f = await r.json();
@@ -822,10 +829,11 @@ async function connectGitHub(token, remember) {
 function disconnectGitHub() {
   try { localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY); } catch (e) { /* storage unavailable */ }
   if (FIELD) PERSONAL = { off: FIELD.off || {}, edits: FIELD.edits || {} };
-  TOKEN = ''; GH_USER = ''; FIELD = null; viewTag = null; remoteError = '';
-  showImportError(''); render();
+  TOKEN = ''; GH_USER = ''; remoteError = '';
+  showImportError(''); loadShared(); // keep showing the data, read-only
 }
 let remoteError = '';
+const canWrite = () => !SHARED || !!TOKEN;
 function buildRemoteBox() {
   const box = document.getElementById('remoteBox');
   box.hidden = !SHARED || mode === 'ideal';
@@ -835,7 +843,7 @@ function buildRemoteBox() {
   document.getElementById('remoteOn').hidden = !on;
   document.getElementById('remoteForm').hidden = on;
   if (on) document.getElementById('remoteStatus').innerHTML = sharedLoading ? 'Loading…'
-    : `Connected to <b>${esc(repoName)}</b>${GH_USER ? ` as <b>${esc(GH_USER)}</b>` : ''} · ${FIELD ? FIELD.stops.length : 0} stops stored. Everyone who connects sees the same stops.`;
+    : `Connected to <b>${esc(repoName)}</b>${GH_USER ? ` as <b>${esc(GH_USER)}</b>` : ''} · ${FIELD ? FIELD.stops.length : 0} stops stored. You can upload and delete stops.`;
   const err = document.getElementById('remoteErr');
   err.textContent = remoteError ? '⚠ ' + remoteError : '';
   err.hidden = !remoteError;
@@ -1045,7 +1053,7 @@ function buildStopsTable() {
       <td><input type="checkbox" data-sel="${esc(s.tag)}" ${sel ? 'checked' : ''} aria-label="Include stop ${esc(s.id)}"></td>
       <td><button class="linkbtn" data-view="${esc(s.tag)}" title="${viewing ? 'Hide from' : 'Show on'} the timeline · ${esc(s.file)}">${esc(s.id)}</button></td>
       <td class="nowrap">${esc(shortTime(s.time))}</td>${cells}<td class="n"><b>${fmt(stopTotal(s))}</b></td>
-      <td><button class="delbtn" data-del="${esc(s.tag)}" title="Delete stop ${esc(s.id)}" aria-label="Delete stop ${esc(s.id)}">×</button></td></tr>`;
+      <td>${canWrite() ? `<button class="delbtn" data-del="${esc(s.tag)}" title="Delete stop ${esc(s.id)}" aria-label="Delete stop ${esc(s.id)}">×</button>` : ''}</td></tr>`;
   }).join('');
   const agg = cols.map(k => { const a = samplesOf(k); return `<td class="n">${a.length ? r1(STAT_FN[stat](a)) : '–'}</td>`; }).join('');
   const foot = `<tfoot><tr><th></th><th colspan="2">${esc(STAT_LABEL[stat][0].toUpperCase() + STAT_LABEL[stat].slice(1))} of selected</th>${agg}<th></th><th></th></tr></tfoot>`;
@@ -1441,10 +1449,11 @@ function render() {
   document.getElementById('reset').hidden = mode === 'compare';
   document.getElementById('reset').textContent = mode === 'field' ? 'Reset to imported values' : 'Reset defaults';
   document.getElementById('legacyNote').hidden = !(noData && legacyData);
-  const locked = SHARED && !TOKEN; // shared data needs a GitHub token before anything shows
-  document.getElementById('emptyTitle').textContent = sharedLoading ? 'Loading shared field data…' : locked ? 'Connect to see field data' : 'No field data imported yet';
-  document.getElementById('connectNote').hidden = !locked;
-  document.getElementById('emptyImport').hidden = locked || sharedLoading;
+  const locked = SHARED && !TOKEN; // anyone can view; uploading and deleting need a GitHub token
+  document.getElementById('emptyTitle').textContent = sharedLoading ? 'Loading shared field data…' : 'No field data imported yet';
+  document.getElementById('connectNote').hidden = !locked || sharedLoading;
+  document.getElementById('emptyImport').hidden = sharedLoading;
+  document.querySelectorAll('.writeOnly').forEach(el => el.hidden = locked);
   buildRemoteBox();
   buildFieldBox();
   buildStopsTable();
@@ -1496,7 +1505,7 @@ document.querySelectorAll('.tplBtn').forEach(b => b.onclick = () => {
 });
 document.getElementById('copyLink').onclick = async () => {
   const url = location.href;
-  const note = SHARED ? 'Link copied. It includes the Ideal values; anyone who connects a GitHub token sees the same field data.' : 'Link copied. It includes the Ideal values. Field data stays in this browser, so use Export JSON to share it.';
+  const note = SHARED ? 'Link copied. It includes the Ideal values; everyone sees the same field data.' : 'Link copied. It includes the Ideal values. Field data stays in this browser, so use Export JSON to share it.';
   try { await navigator.clipboard.writeText(url); flash(note, 6000); }
   catch { prompt('Copy this link:', url); }
 };
@@ -1544,8 +1553,8 @@ addEventListener('resize', () => { if (R && ALL) { drawStopChart(ALL, viewedStop
 loadField();
 loadFromHash();
 if (SHARED) {
-  document.getElementById('storageNote').textContent = `Imported field data is stored in the private GitHub repo ${repoName}, so everyone who connects with a GitHub token sees the same stops.`;
-  if (TOKEN) connectGitHub(TOKEN); else render();
+  document.getElementById('storageNote').textContent = `Imported field data is stored in the public GitHub repo ${repoName}, so everyone sees the same stops. Uploading needs a GitHub token.`;
+  if (TOKEN) connectGitHub(TOKEN); else loadShared();
 } else render();
 </script>
 </body>
